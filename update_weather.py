@@ -129,10 +129,10 @@ def main():
     img = Image.open(src).convert("RGB")
     W, H = img.size
 
-    # Box méretei
-    box_width = 420
-    box_height = 400
-    box_x = W - box_width - 50
+    # SZÉLESEBB box (450px) hogy minden elférjen
+    box_width = 450
+    box_height = 420
+    box_x = W - box_width - 40
     box_y = int(H/2) - int(box_height/2)
     radius = 24
 
@@ -143,19 +143,20 @@ def main():
     img = img.convert("RGB")
     draw = ImageDraw.Draw(img)
 
-    # Betűtípusok
+    # Betűtípusok - kisebb betűk hogy elférjenek
     try:
-        font_temp = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 80)
-        font_label = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 26)
-        font_value = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 26)
-        font_date = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
+        font_temp = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 75)
+        font_label = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
+        font_value = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
+        font_date = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 17)
     except:
         font_temp = font_label = font_value = font_date = ImageFont.load_default()
 
-    margin_left = 35
+    margin_left = 30
+    margin_right = 30
     label_x = box_x + margin_left
-    # Az értékek fix pozíciója a box jobb oldalához igazítva
-    value_x = box_x + box_width - margin_left - 80
+    # ÉRTÉK POZÍCIÓ - elég hely a jobb oldalon
+    value_x = box_x + box_width - margin_right - 100
     
     y = box_y + 45
     
@@ -167,27 +168,27 @@ def main():
     draw.text((temp_x, y), temp_text, font=font_temp, fill=(255, 255, 255))
     
     # Keret
-    frame_padding = 15
+    frame_padding = 12
     draw.rectangle([(temp_x - frame_padding, y - frame_padding), 
                     (temp_x + temp_width + frame_padding, y + (bbox[3] - bbox[1]) + frame_padding)], 
                    outline=(255, 255, 255, 50), width=2)
     
     # 2. Érzet
-    y += 105
+    y += 100
     draw.text((label_x, y), "ÉRZET", font=font_label, fill=(180, 180, 180))
     draw.text((value_x, y), f"{feels_like}°C", font=font_value, fill=(255, 255, 255))
     
     # Elválasztó
-    y += 42
-    draw.line([(label_x, y), (box_x + box_width - margin_left, y)], fill=(255, 255, 255, 40), width=1)
+    y += 38
+    draw.line([(label_x, y), (box_x + box_width - margin_right, y)], fill=(255, 255, 255, 40), width=1)
     
     # 3. Időjárás
-    y += 38
+    y += 35
     draw.text((label_x, y), "IDŐJÁRÁS", font=font_label, fill=(180, 180, 180))
     draw.text((value_x, y), weather_hu, font=font_value, fill=(255, 255, 255))
     
     # 4. Csapadék
-    y += 48
+    y += 42
     draw.text((label_x, y), "CSAPADÉK", font=font_label, fill=(180, 180, 180))
     if rain_chance > 0:
         draw.text((value_x, y), f"{rain_chance}%", font=font_value, fill=(200, 220, 255))
@@ -195,20 +196,20 @@ def main():
         draw.text((value_x, y), "nincs", font=font_value, fill=(200, 220, 200))
     
     # 5. Páratartalom
-    y += 48
-    draw.text((label_x, y), "PÁRA", font=font_label, fill=(180, 180, 180))
+    y += 42
+    draw.text((label_x, y), "PÁRATARTALOM", font=font_label, fill=(180, 180, 180))
     draw.text((value_x, y), f"{humidity}%", font=font_value, fill=(255, 255, 255))
     
-    # 6. Szél (külön sorban, hogy ne legyen túlzsúfolt)
-    y += 48
-    draw.text((label_x, y), "SZÉL", font=font_label, fill=(180, 180, 180))
+    # 6. Szél
+    y += 42
+    draw.text((label_x, y), "SZÉLSEBESSÉG", font=font_label, fill=(180, 180, 180))
     draw.text((value_x, y), f"{wind} km/h", font=font_value, fill=(255, 255, 255))
 
     # Dátum és hely
     now_hu = datetime.now(timezone(timedelta(hours=2))).strftime("%Y.%m.%d. %H:%M")
     date_text = f"Budapest  |  {now_hu}"
     
-    date_y = box_y + box_height + 22
+    date_y = box_y + box_height + 20
     bbox = draw.textbbox((0, 0), date_text, font=font_date)
     date_width = bbox[2] - bbox[0]
     date_x = box_x + (box_width - date_width) // 2
