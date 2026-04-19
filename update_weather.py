@@ -129,7 +129,7 @@ def main():
     img = Image.open(src).convert("RGB")
     W, H = img.size
 
-    # Box méretei - elég széles
+    # Box méretei
     box_width = 380
     box_height = 400
     box_x = W - box_width - 50
@@ -169,7 +169,7 @@ def main():
                     (temp_x + temp_width + frame_padding, y + (bbox[3] - bbox[1]) + frame_padding)], 
                    outline=(255, 255, 255, 50), width=2)
     
-    # 2. Érzet (egy sor)
+    # 2. Érzet
     y += 105
     draw.text((x, y), "ÉRZET", font=font_label, fill=(180, 180, 180))
     draw.text((x + 100, y), f"{feels_like}°C", font=font_value, fill=(255, 255, 255))
@@ -178,20 +178,20 @@ def main():
     y += 40
     draw.line([(x, y), (box_x + box_width - margin_left, y)], fill=(255, 255, 255, 40), width=1)
     
-    # 3. Időjárás (egy sor)
+    # 3. Időjárás
     y += 38
     draw.text((x, y), "IDŐJÁRÁS", font=font_label, fill=(180, 180, 180))
     draw.text((x + 100, y), weather_hu, font=font_value, fill=(255, 255, 255))
     
-    # 4. Csapadék (egy sor)
+    # 4. Csapadék
     y += 45
-    draw.text((x, y), "CSAPADÉK", font=font_label, fill=(180, 180, Espes))
+    draw.text((x, y), "CSAPADÉK", font=font_label, fill=(180, 180, 180))
     if rain_chance > 0:
         draw.text((x + 100, y), f"{rain_chance}%", font=font_value, fill=(200, 220, 255))
     else:
         draw.text((x + 100, y), "nincs", font=font_value, fill=(200, 220, 200))
     
-    # 5. Páratartalom + Szél EGY SORBAN (hogy elférjen)
+    # 5. Páratartalom + Szél EGY SORBAN
     y += 45
     
     # Páratartalom
@@ -202,7 +202,6 @@ def main():
     wind_text = f"{wind} km/h"
     wind_label = "SZÉL"
     
-    # Szél címke jobb oldalra
     wind_label_x = box_x + box_width - margin_left - 120
     draw.text((wind_label_x, y), wind_label, font=font_label, fill=(180, 180, 180))
     draw.text((wind_label_x + 60, y), wind_text, font=font_value, fill=(255, 255, 255))
