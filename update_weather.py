@@ -180,7 +180,7 @@ def main():
     y += 45
     draw.text((x, y), "CSAPADÉK", font=font_label, fill=(180, 180, 180))
     if rain_chance > 0:
-        draw.text((x + 90, y), f"{rain_chance}%", font=font_value, fill(200, 220, 255))
+        draw.text((x + 90, y), f"{rain_chance}%", font=font_value, fill=(200, 220, 255))
     else:
         draw.text((x + 90, y), "nincs", font=font_value, fill(200, 220, 200))
     
