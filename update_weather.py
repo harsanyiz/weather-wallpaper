@@ -129,14 +129,13 @@ def main():
     img = Image.open(src).convert("RGB")
     W, H = img.size
 
-    # Box méretei - elég széles, hogy minden elférjen
-    box_width = 420
-    box_height = 420
+    # Box méretei - elég széles
+    box_width = 380
+    box_height = 400
     box_x = W - box_width - 50
     box_y = int(H/2) - int(box_height/2)
     radius = 24
 
-    # Elmosott kártya
     blurred_card = create_blurred_card(img, box_x, box_y, box_width, box_height, radius, blur_strength=10)
     
     img = img.convert("RGBA")
@@ -147,66 +146,68 @@ def main():
     # Betűtípusok
     try:
         font_temp = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 80)
-        font_label = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28)
-        font_value = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
+        font_label = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 26)
+        font_value = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 26)
         font_date = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
     except:
         font_temp = font_label = font_value = font_date = ImageFont.load_default()
 
-    margin_left = 35
-    label_x = box_x + margin_left
-    value_x = label_x + 110  # Fix távolság a címke és érték között
-    y = box_y + 50
+    margin_left = 30
+    x = box_x + margin_left
+    y = box_y + 45
     
-    # 1. Hőmérséklet - középre igazítva a boxon belül
+    # 1. Hőmérséklet - középen
     temp_text = f"{temp}°C"
     bbox = draw.textbbox((0, 0), temp_text, font=font_temp)
     temp_width = bbox[2] - bbox[0]
     temp_x = box_x + (box_width - temp_width) // 2
     draw.text((temp_x, y), temp_text, font=font_temp, fill=(255, 255, 255))
     
-    # Keret a hőmérséklet köré
+    # Keret
     frame_padding = 15
-    frame_x1 = temp_x - frame_padding
-    frame_y1 = y - frame_padding
-    frame_x2 = temp_x + temp_width + frame_padding
-    frame_y2 = y + (bbox[3] - bbox[1]) + frame_padding
-    draw.rectangle([(frame_x1, frame_y1), (frame_x2, frame_y2)], 
+    draw.rectangle([(temp_x - frame_padding, y - frame_padding), 
+                    (temp_x + temp_width + frame_padding, y + (bbox[3] - bbox[1]) + frame_padding)], 
                    outline=(255, 255, 255, 50), width=2)
     
-    # 2. Érzet
-    y += 115
-    draw.text((label_x, y), "ÉRZET", font=font_label, fill=(180, 180, 180))
-    draw.text((value_x, y), f"{feels_like}°C", font=font_value, fill=(255, 255, 255))
+    # 2. Érzet (egy sor)
+    y += 105
+    draw.text((x, y), "ÉRZET", font=font_label, fill=(180, 180, 180))
+    draw.text((x + 100, y), f"{feels_like}°C", font=font_value, fill=(255, 255, 255))
     
-    # 3. Elválasztó
-    y += 42
-    draw.line([(label_x, y), (box_x + box_width - margin_left, y)], fill=(255, 255, 255, 40), width=1)
+    # Elválasztó
+    y += 40
+    draw.line([(x, y), (box_x + box_width - margin_left, y)], fill=(255, 255, 255, 40), width=1)
     
-    # 4. Időjárás
+    # 3. Időjárás (egy sor)
     y += 38
-    draw.text((label_x, y), "IDŐJÁRÁS", font=font_label, fill=(180, 180, 180))
-    draw.text((value_x, y), weather_hu, font=font_value, fill=(255, 255, 255))
+    draw.text((x, y), "IDŐJÁRÁS", font=font_label, fill=(180, 180, 180))
+    draw.text((x + 100, y), weather_hu, font=font_value, fill=(255, 255, 255))
     
-    # 5. Csapadék
-    y += 48
-    draw.text((label_x, y), "CSAPADÉK", font=font_label, fill=(180, 180, 180))
+    # 4. Csapadék (egy sor)
+    y += 45
+    draw.text((x, y), "CSAPADÉK", font=font_label, fill=(180, 180, Espes))
     if rain_chance > 0:
-        draw.text((value_x, y), f"{rain_chance}%", font=font_value, fill=(200, 220, 255))
+        draw.text((x + 100, y), f"{rain_chance}%", font=font_value, fill=(200, 220, 255))
     else:
-        draw.text((value_x, y), "nincs", font=font_value, fill=(200, 220, 200))
+        draw.text((x + 100, y), "nincs", font=font_value, fill=(200, 220, 200))
     
-    # 6. Páratartalom
-    y += 48
-    draw.text((label_x, y), "PÁRATARTALOM", font=font_label, fill=(180, 180, 180))
-    draw.text((value_x, y), f"{humidity}%", font=font_value, fill=(255, 255, 255))
+    # 5. Páratartalom + Szél EGY SORBAN (hogy elférjen)
+    y += 45
     
-    # 7. Szél
-    y += 48
-    draw.text((label_x, y), "SZÉLSEBESSÉG", font=font_label, fill=(180, 180, 180))
-    draw.text((value_x, y), f"{wind} km/h", font=font_value, fill=(255, 255, 255))
+    # Páratartalom
+    draw.text((x, y), "PÁRA", font=font_label, fill=(180, 180, 180))
+    draw.text((x + 70, y), f"{humidity}%", font=font_value, fill=(255, 255, 255))
+    
+    # Szél (jobb oldalra)
+    wind_text = f"{wind} km/h"
+    wind_label = "SZÉL"
+    
+    # Szél címke jobb oldalra
+    wind_label_x = box_x + box_width - margin_left - 120
+    draw.text((wind_label_x, y), wind_label, font=font_label, fill=(180, 180, 180))
+    draw.text((wind_label_x + 60, y), wind_text, font=font_value, fill=(255, 255, 255))
 
-    # 8. Dátum és hely
+    # Dátum és hely
     now_hu = datetime.now(timezone(timedelta(hours=2))).strftime("%Y.%m.%d. %H:%M")
     date_text = f"Budapest  |  {now_hu}"
     
@@ -220,7 +221,6 @@ def main():
     img.save(dst, "JPEG", quality=95)
     print(f"✓ current.jpg elkészült")
 
-    # JSON mentés
     image_url = f"{BASE_URL}/current.jpg"
     weather_json = [{
         "location": "Budapest",
