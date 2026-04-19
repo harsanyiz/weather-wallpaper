@@ -7,7 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 # — Konfig —
 
-API_KEY = os.environ.get(“OWM_API_KEY”, “f1140d0ccb478ba741a957a67dd074ca”)
+API_KEY = os.environ.get("OWM_API_KEY")
 CITY = “Budapest”
 GITHUB_USER = “harsanyiz”
 GITHUB_REPO = “weather-wallpaper”
