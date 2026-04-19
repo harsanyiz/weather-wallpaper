@@ -130,7 +130,7 @@ def main():
     W, H = img.size
 
     # Box méretei
-    box_width = 380
+    box_width = 420
     box_height = 400
     box_x = W - box_width - 50
     box_y = int(H/2) - int(box_height/2)
@@ -152,8 +152,11 @@ def main():
     except:
         font_temp = font_label = font_value = font_date = ImageFont.load_default()
 
-    margin_left = 30
-    x = box_x + margin_left
+    margin_left = 35
+    label_x = box_x + margin_left
+    # Az értékek fix pozíciója a box jobb oldalához igazítva
+    value_x = box_x + box_width - margin_left - 80
+    
     y = box_y + 45
     
     # 1. Hőmérséklet - középen
@@ -171,40 +174,35 @@ def main():
     
     # 2. Érzet
     y += 105
-    draw.text((x, y), "ÉRZET", font=font_label, fill=(180, 180, 180))
-    draw.text((x + 100, y), f"{feels_like}°C", font=font_value, fill=(255, 255, 255))
+    draw.text((label_x, y), "ÉRZET", font=font_label, fill=(180, 180, 180))
+    draw.text((value_x, y), f"{feels_like}°C", font=font_value, fill=(255, 255, 255))
     
     # Elválasztó
-    y += 40
-    draw.line([(x, y), (box_x + box_width - margin_left, y)], fill=(255, 255, 255, 40), width=1)
+    y += 42
+    draw.line([(label_x, y), (box_x + box_width - margin_left, y)], fill=(255, 255, 255, 40), width=1)
     
     # 3. Időjárás
     y += 38
-    draw.text((x, y), "IDŐJÁRÁS", font=font_label, fill=(180, 180, 180))
-    draw.text((x + 100, y), weather_hu, font=font_value, fill=(255, 255, 255))
+    draw.text((label_x, y), "IDŐJÁRÁS", font=font_label, fill=(180, 180, 180))
+    draw.text((value_x, y), weather_hu, font=font_value, fill=(255, 255, 255))
     
     # 4. Csapadék
-    y += 45
-    draw.text((x, y), "CSAPADÉK", font=font_label, fill=(180, 180, 180))
+    y += 48
+    draw.text((label_x, y), "CSAPADÉK", font=font_label, fill=(180, 180, 180))
     if rain_chance > 0:
-        draw.text((x + 100, y), f"{rain_chance}%", font=font_value, fill=(200, 220, 255))
+        draw.text((value_x, y), f"{rain_chance}%", font=font_value, fill=(200, 220, 255))
     else:
-        draw.text((x + 100, y), "nincs", font=font_value, fill=(200, 220, 200))
+        draw.text((value_x, y), "nincs", font=font_value, fill=(200, 220, 200))
     
-    # 5. Páratartalom + Szél EGY SORBAN
-    y += 45
+    # 5. Páratartalom
+    y += 48
+    draw.text((label_x, y), "PÁRA", font=font_label, fill=(180, 180, 180))
+    draw.text((value_x, y), f"{humidity}%", font=font_value, fill=(255, 255, 255))
     
-    # Páratartalom
-    draw.text((x, y), "PÁRA", font=font_label, fill=(180, 180, 180))
-    draw.text((x + 70, y), f"{humidity}%", font=font_value, fill=(255, 255, 255))
-    
-    # Szél (jobb oldalra)
-    wind_text = f"{wind} km/h"
-    wind_label = "SZÉL"
-    
-    wind_label_x = box_x + box_width - margin_left - 120
-    draw.text((wind_label_x, y), wind_label, font=font_label, fill=(180, 180, 180))
-    draw.text((wind_label_x + 60, y), wind_text, font=font_value, fill=(255, 255, 255))
+    # 6. Szél (külön sorban, hogy ne legyen túlzsúfolt)
+    y += 48
+    draw.text((label_x, y), "SZÉL", font=font_label, fill=(180, 180, 180))
+    draw.text((value_x, y), f"{wind} km/h", font=font_value, fill=(255, 255, 255))
 
     # Dátum és hely
     now_hu = datetime.now(timezone(timedelta(hours=2))).strftime("%Y.%m.%d. %H:%M")
