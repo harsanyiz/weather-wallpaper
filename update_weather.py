@@ -131,8 +131,8 @@ def main():
     W, H = img.size
 
     # Box méretei
-    box_width = 380
-    box_height = 420
+    box_width = 400
+    box_height = 430
     box_x = W - box_width - 50
     box_y = int(H/2) - int(box_height/2)
     radius = 24
@@ -148,22 +148,40 @@ def main():
     # Betűtípusok
     try:
         font_temp = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 82)
-        font_label = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 30)
-        font_value = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
-        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
-        font_date = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 22)
+        font_label = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28)
+        font_value = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)  # Kisebb
+        font_date = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)   # Még kisebb
     except:
         font_temp = font_label = font_value = font_small = font_date = ImageFont.load_default()
 
     margin_left = 30
     x = box_x + margin_left
-    y = box_y + 55
+    y = box_y + 50
     
-    # 1. Hőmérséklet
-    draw.text((x, y), f"{temp}°C", font=font_temp, fill=(255, 255, 255))
+    # 1. Hőmérséklet - KERETBEN, HALVÁNYAN
+    # Keret rajzolása a hőmérséklet köré
+    temp_text = f"{temp}°C"
+    bbox = draw.textbbox((0, 0), temp_text, font=font_temp)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+    
+    # Keret pozíciója (kicsit nagyobb, mint a szöveg)
+    frame_padding = 15
+    frame_x1 = x - frame_padding
+    frame_y1 = y - frame_padding
+    frame_x2 = x + text_width + frame_padding
+    frame_y2 = y + text_height + frame_padding
+    
+    # Halvány keret
+    draw.rectangle([(frame_x1, frame_y1), (frame_x2, frame_y2)], 
+                   outline=(255, 255, 255, 60), width=2)
+    
+    # Hőmérséklet szöveg
+    draw.text((x, y), temp_text, font=font_temp, fill=(255, 255, 255))
     
     # 2. Érzet
-    y += 100
+    y += 110
     draw.text((x, y), "ÉRZET", font=font_label, fill=(180, 180, 180))
     draw.text((x + 90, y), f"{feels_like}°C", font=font_value, fill=(255, 255, 255))
     
@@ -194,16 +212,16 @@ def main():
     draw.text((x, y), "SZÉL", font=font_label, fill=(180, 180, 180))
     draw.text((x + 90, y), f"{wind} km/h", font=font_value, fill=(255, 255, 255))
 
-    # 8. Dátum és hely
+    # 8. Dátum és hely - 15%-kal kisebb
     now_hu = datetime.now(timezone(timedelta(hours=2))).strftime("%Y.%m.%d. %H:%M")
-    date_text = f"Budapest  |  {now_hu}"
+    date_text = f"Budapest | {now_hu}"
     
-    date_y = box_y + box_height + 25
+    date_y = box_y + box_height + 20
     bbox = draw.textbbox((0, 0), date_text, font=font_date)
     date_width = bbox[2] - bbox[0]
     date_x = box_x + (box_width - date_width) // 2
     
-    draw.text((date_x, date_y), date_text, font=font_date, fill=(160, 160, 160))
+    draw.text((date_x, date_y), date_text, font=font_date, fill=(140, 140, 140))
 
     img.save(dst, "JPEG", quality=95)
     print(f"✓ current.jpg elkészült")
