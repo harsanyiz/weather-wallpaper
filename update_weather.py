@@ -87,7 +87,7 @@ def create_blurred_card(image, box_x, box_y, box_width, box_height, radius=25, b
     mask_draw = ImageDraw.Draw(mask)
     mask_draw.rounded_rectangle((0, 0, box_width, box_height), radius=radius, fill=255)
     
-    glass = Image.new("RGBA", (box_width, box_height), (0, 0, 0, 80))  # Sötét, nem fehér
+    glass = Image.new("RGBA", (box_width, box_height), (0, 0, 0, 80))
     
     blurred = blurred.convert("RGBA")
     blurred.putalpha(mask)
@@ -130,9 +130,9 @@ def main():
     img = Image.open(src).convert("RGB")
     W, H = img.size
 
-    # Box méretei - keskenyebb, elegánsabb
+    # Box méretei
     box_width = 380
-    box_height = 400
+    box_height = 420
     box_x = W - box_width - 50
     box_y = int(H/2) - int(box_height/2)
     radius = 24
@@ -145,7 +145,7 @@ def main():
     img = img.convert("RGB")
     draw = ImageDraw.Draw(img)
 
-    # Betűtípusok - csak normál, emoji nuku
+    # Betűtípusok
     try:
         font_temp = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 82)
         font_label = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 30)
@@ -159,7 +159,7 @@ def main():
     x = box_x + margin_left
     y = box_y + 55
     
-    # 1. Hőmérséklet - nagy szám
+    # 1. Hőmérséklet
     draw.text((x, y), f"{temp}°C", font=font_temp, fill=(255, 255, 255))
     
     # 2. Érzet
@@ -182,7 +182,7 @@ def main():
     if rain_chance > 0:
         draw.text((x + 90, y), f"{rain_chance}%", font=font_value, fill=(200, 220, 255))
     else:
-        draw.text((x + 90, y), "nincs", font=font_value, fill(200, 220, 200))
+        draw.text((x + 90, y), "nincs", font=font_value, fill=(200, 220, 200))
     
     # 6. Páratartalom
     y += 45
@@ -194,7 +194,7 @@ def main():
     draw.text((x, y), "SZÉL", font=font_label, fill=(180, 180, 180))
     draw.text((x + 90, y), f"{wind} km/h", font=font_value, fill=(255, 255, 255))
 
-    # 8. Dátum és hely (box alatt)
+    # 8. Dátum és hely
     now_hu = datetime.now(timezone(timedelta(hours=2))).strftime("%Y.%m.%d. %H:%M")
     date_text = f"Budapest  |  {now_hu}"
     
@@ -206,7 +206,7 @@ def main():
     draw.text((date_x, date_y), date_text, font=font_date, fill=(160, 160, 160))
 
     img.save(dst, "JPEG", quality=95)
-    print(f"✓ current.jpg elkészült (ikonmentes, tiszta design)")
+    print(f"✓ current.jpg elkészült")
 
     # JSON mentés
     image_url = f"{BASE_URL}/current.jpg"
