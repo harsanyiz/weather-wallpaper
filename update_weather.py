@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 # --- Konfig ---
+# Próbáld meg környezeti változóból, de ha nincs, marad a default (GitHub Secret-be tedd majd!)
 API_KEY = os.environ.get("OWM_API_KEY", "f1140d0ccb478ba741a957a67dd074ca")
 CITY = "Budapest"
 GITHUB_USER = "harsanyiz"
@@ -15,218 +16,183 @@ BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRAN
 
 def get_image_name(weather_id, is_night):
     suffix = "night" if is_night else "day"
-    if weather_id in [611, 612, 613, 615, 616]:
-        return f"sleet_{suffix}"
-    elif weather_id in [620, 621, 622, 600, 601, 602]:
-        return f"snow_{suffix}"
-    elif weather_id in [511]:
-        return f"hail_{suffix}"
-    elif weather_id in [781, 771, 762, 761, 751, 731, 721, 711, 701]:
-        return f"foggy_{suffix}"
-    elif weather_id in [200, 201, 202, 210, 211, 212, 221, 230, 231, 232]:
-        return f"hail_{suffix}"
-    elif weather_id in range(500, 532):
-        return f"rainy_{suffix}"
-    elif weather_id in range(300, 322):
-        return f"rainy_{suffix}"
-    elif weather_id in [800]:
-        return f"sunny_{suffix}"
-    elif weather_id in [801, 802, 803, 804]:
-        return f"cloudy_{suffix}"
-    else:
-        return f"cloudy_{suffix}"
+    if weather_id in [611, 612, 613, 615, 616]: return f"sleet_{suffix}"
+    elif weather_id in [620, 621, 622, 600, 601, 602]: return f"snow_{suffix}"
+    elif weather_id in [511]: return f"hail_{suffix}"
+    elif weather_id in [781, 771, 762, 761, 751, 731, 721, 711, 701]: return f"foggy_{suffix}"
+    elif weather_id in range(200, 233): return f"hail_{suffix}"
+    elif weather_id in range(500, 532): return f"rainy_{suffix}"
+    elif weather_id in range(300, 322): return f"rainy_{suffix}"
+    elif weather_id == 800: return f"sunny_{suffix}"
+    else: return f"cloudy_{suffix}"
 
 def get_weather_hu(weather_id):
-    if weather_id in [611, 612, 613, 615, 616]:
-        return "Ónos eső"
-    elif weather_id in [620, 621, 622, 600, 601, 602]:
-        return "Havazás"
-    elif weather_id == 511:
-        return "Jégeső"
-    elif weather_id in [781, 771, 762, 761, 751, 731, 721, 711, 701]:
-        return "Köd"
-    elif weather_id in range(200, 233):
-        return "Zivatar"
-    elif weather_id in range(500, 532):
-        return "Eső"
-    elif weather_id in range(300, 322):
-        return "Szitálás"
-    elif weather_id == 800:
-        return "Derült"
-    elif weather_id in [801, 802]:
-        return "Enyhén felhős"
-    elif weather_id in [803, 804]:
-        return "Felhős"
-    else:
-        return "Változékony"
+    if weather_id in [611, 612, 613, 615, 616]: return "Ónos eső"
+    elif weather_id in [620, 621, 622, 600, 601, 602]: return "Havazás"
+    elif weather_id == 511: return "Jégeső"
+    elif weather_id in [781, 771, 762, 761, 751, 731, 721, 711, 701]: return "Köd"
+    elif weather_id in range(200, 233): return "Zivatar"
+    elif weather_id in range(500, 532): return "Eső"
+    elif weather_id in range(300, 322): return "Szitálás"
+    elif weather_id == 800: return "Derült"
+    elif weather_id in [801, 802]: return "Enyhén felhős"
+    elif weather_id in [803, 804]: return "Felhős"
+    else: return "Változékony"
 
 def get_rain_chance(weather_id):
-    if weather_id in range(200, 233):
-        return 80
-    elif weather_id in range(500, 532):
-        return 70
-    elif weather_id in range(300, 322):
-        return 50
-    elif weather_id in [611, 612, 613, 615, 616]:
-        return 60
-    elif weather_id in [801, 802]:
-        return 20
-    elif weather_id in [803, 804]:
-        return 30
-    elif weather_id == 800:
-        return 0
-    else:
-        return 10
+    if weather_id in range(200, 233): return 80
+    elif weather_id in range(500, 532): return 70
+    elif weather_id in range(300, 322): return 50
+    elif weather_id == 800: return 0
+    else: return 20
 
-def create_blurred_card(image, box_x, box_y, box_width, box_height, radius=25, blur_strength=12):
+def create_blurred_card(image, box_x, box_y, box_width, box_height, radius=30, blur_strength=15):
+    # Kivágjuk a területet a blurözéshez
     box_area = image.crop((box_x, box_y, box_x + box_width, box_y + box_height))
     blurred = box_area.filter(ImageFilter.GaussianBlur(blur_strength))
     
+    # Maszk a lekerekített sarkokhoz
     mask = Image.new("L", (box_width, box_height), 0)
     mask_draw = ImageDraw.Draw(mask)
     mask_draw.rounded_rectangle((0, 0, box_width, box_height), radius=radius, fill=255)
     
-    glass = Image.new("RGBA", (box_width, box_height), (0, 0, 0, 80))
+    # Sötétített réteg (üveg hatás)
+    glass = Image.new("RGBA", (box_width, box_height), (0, 0, 0, 110)) # 110-es sötétítés a kontrasztért
     
     blurred = blurred.convert("RGBA")
     blurred.putalpha(mask)
-    glass.putalpha(mask.point(lambda p: p * 0.6))
     
+    # Összeillesztés
     result = Image.alpha_composite(blurred, glass)
     
+    # Finom fehér keret
     border = Image.new("RGBA", (box_width, box_height), (0, 0, 0, 0))
     border_draw = ImageDraw.Draw(border)
     border_draw.rounded_rectangle((0, 0, box_width, box_height), radius=radius, outline=(255, 255, 255, 40), width=1)
     
-    result = Image.alpha_composite(result, border)
-    return result
+    return Image.alpha_composite(result, border)
 
 def main():
-    url = f"https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric"
-    resp = requests.get(url)
-    data = resp.json()
+    # 1. Adatok lekérése
+    try:
+        url = f"https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric"
+        resp = requests.get(url)
+        data = resp.json()
 
-    temp = round(data["main"]["temp"])
-    feels_like = round(data["main"]["feels_like"])
-    humidity = data["main"]["humidity"]
-    wind = round(data["wind"]["speed"] * 3.6)
-    weather_id = data["weather"][0]["id"]
-    sunrise = data["sys"]["sunrise"]
-    sunset = data["sys"]["sunset"]
+        temp = round(data["main"]["temp"])
+        feels_like = round(data["main"]["feels_like"])
+        humidity = data["main"]["humidity"]
+        wind = round(data["wind"]["speed"] * 3.6)
+        weather_id = data["weather"][0]["id"]
+        
+        # Időzóna alapú óra (Budapest)
+        tz_offset = data.get("timezone", 3600)
+        now_dt = datetime.now(timezone(timedelta(seconds=tz_offset)))
+        
+        sunrise = data["sys"]["sunrise"]
+        sunset = data["sys"]["sunset"]
+        now_ts = datetime.now(timezone.utc).timestamp()
+        is_night = now_ts < sunrise or now_ts > sunset
 
-    now_ts = datetime.now(timezone.utc).timestamp()
-    is_night = now_ts < sunrise or now_ts > sunset
+        weather_hu = get_weather_hu(weather_id)
+        rain_chance = get_rain_chance(weather_id)
+        image_name = get_image_name(weather_id, is_night)
+    except Exception as e:
+        print(f"Hiba az adatoknál: {e}")
+        return
 
-    weather_hu = get_weather_hu(weather_id)
-    rain_chance = get_rain_chance(weather_id)
-    image_name = get_image_name(weather_id, is_night)
-
-    print(f"{weather_hu} | {temp}°C | Csapadék: {rain_chance}%")
-
+    # 2. Kép betöltése
     src = f"images/{image_name}.jpg"
     dst = "images/current.jpg"
+    
+    if not os.path.exists(src):
+        # Ha nincs meg a specifikus kép, fallback egy alapra
+        print(f"Hiányzó kép: {src}, próbálkozás alapértelmezettel...")
+        src = "images/cloudy_day.jpg"
 
     img = Image.open(src).convert("RGB")
     W, H = img.size
 
-    # Box méretei - MAGASABB, hogy a dátum is beleférjen
-    box_width = 450
-    box_height = 470
-    box_x = W - box_width - 40
-    box_y = int(H/2) - int(box_height/2)
-    radius = 24
+    # 3. Kártya méretezés (Jobbra középre)
+    box_width = 440
+    box_height = 500
+    box_x = W - box_width - 70
+    box_y = (H - box_height) // 2
 
-    blurred_card = create_blurred_card(img, box_x, box_y, box_width, box_height, radius, blur_strength=10)
-    
+    # Üveg kártya felhelyezése
+    blurred_card = create_blurred_card(img, box_x, box_y, box_width, box_height)
     img = img.convert("RGBA")
     img.paste(blurred_card, (box_x, box_y), blurred_card)
-    img = img.convert("RGB")
     draw = ImageDraw.Draw(img)
 
-    # Betűtípusok
-    try:
-        font_temp = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 80)
-        font_label = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 26)
-        font_value = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 26)
-        font_date = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
-    except:
-        font_temp = font_label = font_value = font_date = ImageFont.load_default()
+    # 4. Betűtípusok betöltése
+    def get_font(size, bold=False):
+        paths = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "C:/Windows/Fonts/arial.ttf",
+            "/System/Library/Fonts/Cache/Roboto-Bold.ttf"
+        ]
+        for p in paths:
+            if os.path.exists(p): return ImageFont.truetype(p, size)
+        return ImageFont.load_default()
 
-    margin_left = 35
-    margin_right = 35
-    label_x = box_x + margin_left
-    value_x = box_x + box_width - margin_right - 100
-    
-    y = box_y + 45
-    
-    # 1. Hőmérséklet - középen
-    temp_text = f"{temp}°C"
-    bbox = draw.textbbox((0, 0), temp_text, font=font_temp)
-    temp_width = bbox[2] - bbox[0]
-    temp_x = box_x + (box_width - temp_width) // 2
-    draw.text((temp_x, y), temp_text, font=font_temp, fill=(255, 255, 255))
-    
-    # 2. Érzet
-    y += 100
-    draw.text((label_x, y), "ÉRZET", font=font_label, fill=(180, 180, 180))
-    draw.text((value_x, y), f"{feels_like}°C", font=font_value, fill=(255, 255, 255))
-    
-    # Elválasztó
-    y += 40
-    draw.line([(label_x, y), (box_x + box_width - margin_right, y)], fill=(255, 255, 255, 40), width=1)
-    
-    # 3. Időjárás
-    y += 36
-    draw.text((label_x, y), "IDŐJÁRÁS", font=font_label, fill=(180, 180, 180))
-    draw.text((value_x, y), weather_hu, font=font_value, fill=(255, 255, 255))
-    
-    # 4. Csapadék
-    y += 44
-    draw.text((label_x, y), "CSAPADÉK", font=font_label, fill=(180, 180, 180))
-    if rain_chance > 0:
-        draw.text((value_x, y), f"{rain_chance}%", font=font_value, fill=(200, 220, 255))
-    else:
-        draw.text((value_x, y), "nincs", font=font_value, fill=(200, 220, 200))
-    
-    # 5. Páratartalom
-    y += 44
-    draw.text((label_x, y), "PÁRATARTALOM", font=font_label, fill=(180, 180, 180))
-    draw.text((value_x, y), f"{humidity}%", font=font_value, fill=(255, 255, 255))
-    
-    # 6. Szél
-    y += 44
-    draw.text((label_x, y), "SZÉLSEBESSÉG", font=font_label, fill=(180, 180, 180))
-    draw.text((value_x, y), f"{wind} km/h", font=font_value, fill=(255, 255, 255))
+    font_temp = get_font(90, True)
+    font_label = get_font(22, False)
+    font_value = get_font(24, True)
+    font_footer = get_font(18, False)
 
-    # 7. Dátum és hely - BELE A BOXBA (elválasztóval a tetején)
-    y += 50
-    draw.line([(label_x, y), (box_x + box_width - margin_right, y)], fill=(255, 255, 255, 30), width=1)
-    
-    y += 25
-    now_hu = datetime.now(timezone(timedelta(hours=2))).strftime("%Y.%m.%d. %H:%M")
-    date_text = f"Budapest  |  {now_hu}"
-    
-    bbox = draw.textbbox((0, 0), date_text, font=font_date)
-    date_width = bbox[2] - bbox[0]
-    date_x = box_x + (box_width - date_width) // 2
-    
-    draw.text((date_x, y), date_text, font=font_date, fill=(160, 160, 160))
+    # 5. Rajzolás
+    margin = 40
+    curr_y = box_y + 40
 
-    img.save(dst, "JPEG", quality=95)
-    print(f"✓ current.jpg elkészült")
+    # Fő hőmérséklet (Középre a kártyán)
+    t_text = f"{temp}°"
+    t_bbox = draw.textbbox((0, 0), t_text, font=font_temp)
+    t_w = t_bbox[2] - t_bbox[0]
+    draw.text((box_x + (box_width - t_w)//2, curr_y), t_text, font=font_temp, fill=(255, 255, 255, 255))
+    
+    curr_y += 130
 
-    image_url = f"{BASE_URL}/current.jpg"
+    # Adatsorok kirajzolása (Balra címke, Jobbra érték)
+    rows = [
+        ("ÉRZET", f"{feels_like} °C"),
+        ("IDŐJÁRÁS", weather_hu.upper()),
+        ("CSAPADÉK", f"{rain_chance}%"),
+        ("PÁRATARTALOM", f"{humidity}%"),
+        ("SZÉLSEBESSÉG", f"{wind} km/h")
+    ]
+
+    for label, val in rows:
+        # Címke
+        draw.text((box_x + margin, curr_y), label, font=font_label, fill=(255, 255, 255, 140))
+        # Érték (Jobbra igazítva)
+        v_bbox = draw.textbbox((0, 0), val, font=font_value)
+        v_w = v_bbox[2] - v_bbox[0]
+        draw.text((box_x + box_width - margin - v_w, curr_y), val, font=font_value, fill=(255, 255, 255, 255))
+        
+        # Elválasztó vonal
+        line_y = curr_y + 45
+        draw.line([(box_x + margin, line_y), (box_x + box_width - margin, line_y)], fill=(255, 255, 255, 30), width=1)
+        curr_y += 65
+
+    # Footer (Város + Idő)
+    footer_text = f"{CITY.upper()} • {now_dt.strftime('%H:%M')}"
+    f_bbox = draw.textbbox((0, 0), footer_text, font=font_footer)
+    f_w = f_bbox[2] - f_bbox[0]
+    draw.text((box_x + (box_width - f_w)//2, box_y + box_height - 35), footer_text, font=font_footer, fill=(255, 255, 255, 100))
+
+    # Mentés
+    img.convert("RGB").save(dst, "JPEG", quality=95)
+    print(f"✓ {dst} elkészült: {weather_hu}, {temp}°C")
+
+    # JSON frissítése a widgeteknek
     weather_json = [{
-        "location": "Budapest",
+        "location": CITY,
         "title": f"{weather_hu} • {temp}°C",
-        "author": "OpenWeatherMap",
-        "url_img": image_url
+        "url_img": f"{BASE_URL}/current.jpg"
     }]
-
     with open("weather.json", "w", encoding="utf-8") as f:
         json.dump(weather_json, f, ensure_ascii=False, indent=2)
-
-    print(f"✓ weather.json elkészült")
 
 if __name__ == "__main__":
     main()
