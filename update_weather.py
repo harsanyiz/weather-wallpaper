@@ -3,178 +3,92 @@ import json
 import os
 import urllib.request
 from datetime import datetime, timezone, timedelta
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont
 
-# --- Konfig ---
-API_KEY = os.environ.get("OWM_API_KEY", "f1140d0ccb478ba741a957a67dd074ca")
+API_KEY = os.environ.get("OWM_API_KEY")
 CITY = "Budapest"
 GITHUB_USER = "harsanyiz"
 GITHUB_REPO = "weather-wallpaper"
 BRANCH = "main"
-
 BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images"
 
-EMOJI_FONT_PATH = "/tmp/NotoColorEmoji.ttf"
-EMOJI_FONT_URL = "https://github.com/googlefonts/noto-emoji/raw/main/fonts/NotoColorEmoji.ttf"
+FONT_URL = "https://github.com/google/fonts/raw/main/ofl/notosans/NotoSans-Regular.ttf"
+FONT_BOLD_URL = "https://github.com/google/fonts/raw/main/ofl/notosans/NotoSans-Bold.ttf"
+FONT_PATH = "/tmp/NotoSans-Regular.ttf"
+FONT_BOLD_PATH = "/tmp/NotoSans-Bold.ttf"
 
-def ensure_emoji_font():
-    if not os.path.exists(EMOJI_FONT_PATH):
-        print("📥 Noto Color Emoji font letöltése...")
-        try:
-            urllib.request.urlretrieve(EMOJI_FONT_URL, EMOJI_FONT_PATH)
-            print("✓ Emoji font letöltve")
-        except Exception as e:
-            print(f"⚠️ Emoji font letöltés sikertelen: {e}")
-            return False
-    return True
+def download_fonts():
+    if not os.path.exists(FONT_PATH):
+        urllib.request.urlretrieve(FONT_URL, FONT_PATH)
+    if not os.path.exists(FONT_BOLD_PATH):
+        urllib.request.urlretrieve(FONT_BOLD_URL, FONT_BOLD_PATH)
 
 def get_image_name(weather_id, is_night):
     suffix = "night" if is_night else "day"
-    if weather_id in [611, 612, 613, 615, 616]:
-        return f"sleet_{suffix}"
-    elif weather_id in [620, 621, 622, 600, 601, 602]:
-        return f"snow_{suffix}"
-    elif weather_id in [511]:
-        return f"hail_{suffix}"
-    elif weather_id in [781, 771, 762, 761, 751, 731, 721, 711, 701]:
-        return f"foggy_{suffix}"
-    elif weather_id in [200, 201, 202, 210, 211, 212, 221, 230, 231, 232]:
-        return f"hail_{suffix}"
-    elif weather_id in range(500, 532):
-        return f"rainy_{suffix}"
-    elif weather_id in range(300, 322):
-        return f"rainy_{suffix}"
-    elif weather_id in [800]:
-        return f"sunny_{suffix}"
-    elif weather_id in [801, 802, 803, 804]:
-        return f"cloudy_{suffix}"
-    else:
-        return f"cloudy_{suffix}"
+    if weather_id in [611, 612, 613, 615, 616]: return f"sleet_{suffix}"
+    elif weather_id in [620, 621, 622, 600, 601, 602]: return f"snow_{suffix}"
+    elif weather_id in [511]: return f"hail_{suffix}"
+    elif weather_id in [781, 771, 762, 761, 751, 731, 721, 711, 701]: return f"foggy_{suffix}"
+    elif weather_id in [200, 201, 202, 210, 211, 212, 221, 230, 231, 232]: return f"hail_{suffix}"
+    elif weather_id in range(500, 532): return f"rainy_{suffix}"
+    elif weather_id in range(300, 322): return f"rainy_{suffix}"
+    elif weather_id in [800]: return f"sunny_{suffix}"
+    elif weather_id in [801, 802, 803, 804]: return f"cloudy_{suffix}"
+    else: return f"cloudy_{suffix}"
 
 def get_weather_hu(weather_id):
-    if weather_id in [611, 612, 613, 615, 616]:
-        return "Ónos eső"
-    elif weather_id in [620, 621, 622, 600, 601, 602]:
-        return "Havazás"
-    elif weather_id == 511:
-        return "Jégeső"
-    elif weather_id in [781, 771, 762, 761, 751, 731, 721, 711, 701]:
-        return "Köd"
-    elif weather_id in range(200, 233):
-        return "Zivatar"
-    elif weather_id in range(500, 532):
-        return "Eső"
-    elif weather_id in range(300, 322):
-        return "Szitálás"
-    elif weather_id == 800:
-        return "Derült"
-    elif weather_id in [801, 802]:
-        return "Enyhén felhős"
-    elif weather_id in [803, 804]:
-        return "Felhős"
-    else:
-        return "Változékony"
-
-def get_weather_icon(weather_id):
-    if weather_id in [611, 612, 613, 615, 616]:
-        return "🌨️"
-    elif weather_id in [620, 621, 622, 600, 601, 602]:
-        return "❄️"
-    elif weather_id == 511:
-        return "🧊"
-    elif weather_id in [781, 771, 762, 761, 751, 731, 721, 711, 701]:
-        return "🌫️"
-    elif weather_id in range(200, 233):
-        return "⛈️"
-    elif weather_id in range(500, 532):
-        return "🌧️"
-    elif weather_id in range(300, 322):
-        return "💧"
-    elif weather_id == 800:
-        return "☀️"
-    elif weather_id in [801, 802]:
-        return "⛅"
-    elif weather_id in [803, 804]:
-        return "☁️"
-    else:
-        return "🌡️"
+    if weather_id in [611, 612, 613, 615, 616]: return "\u00d3nos es\u0151"
+    elif weather_id in [620, 621, 622, 600, 601, 602]: return "Havaz\u00e1s"
+    elif weather_id == 511: return "J\u00e9ges\u0151"
+    elif weather_id in [781, 771, 762, 761, 751, 731, 721, 711, 701]: return "K\u00f6d"
+    elif weather_id in range(200, 233): return "Zivatar"
+    elif weather_id in range(500, 532): return "Es\u0151"
+    elif weather_id in range(300, 322): return "Szit\u00e1l\u00e1s"
+    elif weather_id == 800: return "Der\u00fclt"
+    elif weather_id in [801, 802]: return "Enyh\u00e9n felh\u0151s"
+    elif weather_id in [803, 804]: return "Felh\u0151s"
+    else: return "V\u00e1ltoz\u00e9kony"
 
 def get_rain_chance(weather_id):
-    if weather_id in range(200, 233):
-        return 80
-    elif weather_id in range(500, 532):
-        return 70
-    elif weather_id in range(300, 322):
-        return 50
-    elif weather_id in [611, 612, 613, 615, 616]:
-        return 60
-    elif weather_id in [801, 802]:
-        return 20
-    elif weather_id in [803, 804]:
-        return 30
-    elif weather_id == 800:
-        return 0
-    else:
-        return 10
+    if weather_id in range(200, 233): return 80
+    elif weather_id in range(500, 532): return 70
+    elif weather_id in range(300, 322): return 50
+    elif weather_id in [611, 612, 613, 615, 616]: return 60
+    elif weather_id in [801, 802]: return 20
+    elif weather_id in [803, 804]: return 30
+    elif weather_id == 800: return 0
+    else: return 10
 
-def create_blurred_card(image, box_x, box_y, box_width, box_height, radius=25, blur_strength=15):
-    """Elmosott, lekerekített üvegkártya effekt"""
-    # Kivágjuk a box területét
-    box_area = image.crop((box_x, box_y, box_x + box_width, box_y + box_height))
-    
-    # Elmosás
-    blurred = box_area.filter(ImageFilter.GaussianBlur(blur_strength))
-    
-    # Lekerekített maszk készítése
-    mask = Image.new("L", (box_width, box_height), 0)
-    mask_draw = ImageDraw.Draw(mask)
-    mask_draw.rounded_rectangle((0, 0, box_width, box_height), radius=radius, fill=255)
-    
-    # Átlátszó fehér réteg a "üveg" hatásért
-    glass = Image.new("RGBA", (box_width, box_height), (255, 255, 255, 25))  # 25-ös átlátszóság
-    
-    # Elmosott kép + üvegréteg összeillesztése
-    blurred = blurred.convert("RGBA")
-    blurred.putalpha(mask)
-    
-    glass.putalpha(mask.point(lambda p: p * 0.25))
-    
-    # Összemosás
-    result = Image.alpha_composite(blurred, glass)
-    
-    # Szegély hozzáadása
-    border = Image.new("RGBA", (box_width, box_height), (0, 0, 0, 0))
-    border_draw = ImageDraw.Draw(border)
-    border_draw.rounded_rectangle((0, 0, box_width, box_height), radius=radius, outline=(255, 255, 255, 60), width=2)
-    
-    result = Image.alpha_composite(result, border)
-    
-    return result
+def draw_rounded_rectangle(draw, xy, radius, fill):
+    x1, y1, x2, y2 = xy
+    draw.rectangle([(x1 + radius, y1), (x2 - radius, y2)], fill=fill)
+    draw.rectangle([(x1, y1 + radius), (x2, y2 - radius)], fill=fill)
+    draw.pieslice([(x1, y1), (x1 + radius*2, y1 + radius*2)], 180, 270, fill=fill)
+    draw.pieslice([(x2 - radius*2, y1), (x2, y1 + radius*2)], 270, 360, fill=fill)
+    draw.pieslice([(x1, y2 - radius*2), (x1 + radius*2, y2)], 90, 180, fill=fill)
+    draw.pieslice([(x2 - radius*2, y2 - radius*2), (x2, y2)], 0, 90, fill=fill)
 
 def main():
-    ensure_emoji_font()
-    
+    download_fonts()
+
     url = f"https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric"
     resp = requests.get(url)
     data = resp.json()
 
-    temp = round(data["main"]["temp"])
+    temp       = round(data["main"]["temp"])
     feels_like = round(data["main"]["feels_like"])
-    humidity = data["main"]["humidity"]
-    wind = round(data["wind"]["speed"] * 3.6)
+    humidity   = data["main"]["humidity"]
+    wind       = round(data["wind"]["speed"] * 3.6)
     weather_id = data["weather"][0]["id"]
-    sunrise = data["sys"]["sunrise"]
-    sunset = data["sys"]["sunset"]
+    sunrise    = data["sys"]["sunrise"]
+    sunset     = data["sys"]["sunset"]
 
-    now_ts = datetime.now(timezone.utc).timestamp()
+    now_ts   = datetime.now(timezone.utc).timestamp()
     is_night = now_ts < sunrise or now_ts > sunset
 
-    weather_hu = get_weather_hu(weather_id)
-    weather_icon = get_weather_icon(weather_id)
+    weather_hu  = get_weather_hu(weather_id)
     rain_chance = get_rain_chance(weather_id)
-    image_name = get_image_name(weather_id, is_night)
-
-    print(f"{weather_hu} | {temp}°C | Csapadék: {rain_chance}%")
+    image_name  = get_image_name(weather_id, is_night)
 
     src = f"images/{image_name}.jpg"
     dst = "images/current.jpg"
@@ -182,112 +96,82 @@ def main():
     img = Image.open(src).convert("RGB")
     W, H = img.size
 
-    # Box méretei
-    box_width = 460
-    box_height = 370
-    box_x = W - box_width - 45
-    box_y = int(H/2) - int(box_height/2)
-    radius = 28
+    # Box 30%-kal kisebb mint az elozo
+    box_w = 378
+    box_h = 301
+    box_x = W - box_w - 60
+    box_y = H // 2 - box_h // 2
 
-    # Elmosott kártya
-    blurred_card = create_blurred_card(img, box_x, box_y, box_width, box_height, radius, blur_strength=12)
-    
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    ov_draw = ImageDraw.Draw(overlay)
+    draw_rounded_rectangle(ov_draw, (box_x, box_y, box_x + box_w, box_y + box_h), 20, (0, 0, 0, 175))
     img = img.convert("RGBA")
-    img.paste(blurred_card, (box_x, box_y), blurred_card)
+    img = Image.alpha_composite(img, overlay)
     img = img.convert("RGB")
     draw = ImageDraw.Draw(img)
 
-    # Betűtípusok
     try:
-        font_temp = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 88)
-        font_feels = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 34)
-        font_weather = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 38)
-        font_detail = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 30)
-        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 26)
-        
-        if os.path.exists(EMOJI_FONT_PATH):
-            font_emoji = ImageFont.truetype(EMOJI_FONT_PATH, 34)
-            font_emoji_small = ImageFont.truetype(EMOJI_FONT_PATH, 26)
-        else:
-            font_emoji = font_detail
-            font_emoji_small = font_small
-    except Exception as e:
-        print(f"Betűtípus hiba: {e}")
-        font_temp = font_feels = font_weather = font_detail = font_small = font_emoji = font_emoji_small = ImageFont.load_default()
+        font_temp    = ImageFont.truetype(FONT_BOLD_PATH, 70)
+        font_feels   = ImageFont.truetype(FONT_PATH, 25)
+        font_weather = ImageFont.truetype(FONT_BOLD_PATH, 31)
+        font_detail  = ImageFont.truetype(FONT_PATH, 22)
+        font_small   = ImageFont.truetype(FONT_PATH, 20)
+    except:
+        font_temp = font_feels = font_weather = font_detail = font_small = ImageFont.load_default()
 
-    margin_left = 32
-    x = box_x + margin_left
-    y = box_y + 48
-    
-    # 1. Hőmérséklet
-    draw.text((x, y), f"{temp}°C", font=font_temp, fill=(255, 255, 255))
-    
-    # 2. Érzet
-    y += 105
-    draw.text((x, y), f"Érzet: {feels_like}°C", font=font_feels, fill=(240, 240, 240))
-    
-    # 3. Elválasztó
-    y += 50
-    draw.line([(x, y - 12), (box_x + box_width - margin_left, y - 12)], fill=(255, 255, 255, 70), width=1)
-    
-    # 4. Időjárás (ikon + szöveg)
-    draw.text((x, y), weather_icon, font=font_emoji, fill=(255, 255, 255))
-    icon_width = draw.textbbox((0, 0), weather_icon, font=font_emoji)[2]
-    draw.text((x + icon_width + 10, y), weather_hu, font=font_weather, fill=(255, 255, 255))
-    
-    # 5. Csapadék
-    y += 52
+    ml = 24
+    x  = box_x + ml
+    y  = box_y + 20
+
+    # Homerseklet
+    draw.text((x, y), f"{temp}\u00b0C", font=font_temp, fill=(255, 255, 255))
+    y += 76
+
+    # Erzet
+    draw.text((x, y), f"\u00c9rzet: {feels_like}\u00b0C", font=font_feels, fill=(210, 210, 210))
+    y += 36
+
+    # Elvalaszto
+    draw.line([(x, y), (box_x + box_w - ml, y)], fill=(200, 200, 200), width=1)
+    y += 11
+
+    # Idojaras
+    draw.text((x, y), weather_hu, font=font_weather, fill=(255, 255, 255))
+    y += 40
+
+    # Csapadek
     if rain_chance > 0:
-        draw.text((x, y), "🌧️", font=font_emoji, fill=(200, 225, 255))
-        rain_icon_width = draw.textbbox((0, 0), "🌧️", font=font_emoji)[2]
-        draw.text((x + rain_icon_width + 10, y), f"Csapadék esélye: {rain_chance}%", font=font_detail, fill=(200, 225, 255))
+        draw.text((x, y), f"Csapad\u00e9k es\u00e9ly: {rain_chance}%", font=font_detail, fill=(180, 210, 255))
     else:
-        draw.text((x, y), "☀️", font=font_emoji, fill=(220, 240, 200))
-        sun_icon_width = draw.textbbox((0, 0), "☀️", font=font_emoji)[2]
-        draw.text((x + sun_icon_width + 10, y), "Csapadék nem várható", font=font_detail, fill=(220, 240, 200))
-    
-    # 6. Páratartalom és szél (egy sorban)
-    y += 48
-    
-    # Páratartalom
-    draw.text((x, y), "💧", font=font_emoji_small, fill=(200, 200, 200))
-    humid_icon_width = draw.textbbox((0, 0), "💧", font=font_emoji_small)[2]
-    draw.text((x + humid_icon_width + 8, y), f"{humidity}%", font=font_small, fill=(200, 200, 200))
-    
-    # Szélsebesség
-    humid_text_width = draw.textbbox((0, 0), f"{humidity}%", font=font_small)[2]
-    wind_x = x + humid_icon_width + 8 + humid_text_width + 35
-    draw.text((wind_x, y), "💨", font=font_emoji_small, fill=(200, 200, 200))
-    wind_icon_width = draw.textbbox((0, 0), "💨", font=font_emoji_small)[2]
-    draw.text((wind_x + wind_icon_width + 8, y), f"{wind} km/h", font=font_small, fill=(200, 200, 200))
+        draw.text((x, y), "Csapad\u00e9k nem v\u00e1rhat\u00f3", font=font_detail, fill=(180, 255, 180))
+    y += 34
 
-    # 7. Dátum és helyszín (box alatt, középen)
-    now_hu = datetime.now(timezone(timedelta(hours=2))).strftime("%Y.%m.%d. %H:%M")
-    date_text = f"📍  Budapest  •  {now_hu}"
-    
-    date_y = box_y + box_height + 22
-    bbox = draw.textbbox((0, 0), date_text, font=font_small)
-    date_width = bbox[2] - bbox[0]
-    date_x = box_x + (box_width - date_width) // 2
-    
-    draw.text((date_x, date_y), date_text, font=font_small, fill=(180, 180, 180))
+    # Par + Szel
+    draw.text((x, y),        f"P\u00e1r: {humidity}%", font=font_small, fill=(180, 180, 180))
+    draw.text((x + 133, y),  f"Sz\u00e9l: {wind} km/h", font=font_small, fill=(180, 180, 180))
+    y += 32
+
+    # Elvalaszto
+    draw.line([(x, y), (box_x + box_w - ml, y)], fill=(120, 120, 120), width=1)
+    y += 10
+
+    # Datum
+    now_hu    = datetime.now(timezone(timedelta(hours=2))).strftime("%Y.%m.%d.  %H:%M")
+    date_text = f"Budapest  |  {now_hu}"
+    bbox      = draw.textbbox((0, 0), date_text, font=font_small)
+    date_w    = bbox[2] - bbox[0]
+    date_x    = box_x + (box_w - date_w) // 2
+    draw.text((date_x, y), date_text, font=font_small, fill=(150, 150, 150))
 
     img.save(dst, "JPEG", quality=95)
-    print(f"✓ current.jpg elkészült (üvegmatrica stílus)")
+    print("current.jpg kesz")
 
-    # JSON mentés
-    image_url = f"{BASE_URL}/current.jpg"
-    weather_json = [{
-        "location": "Budapest",
-        "title": f"{weather_icon} {weather_hu} • {temp}°C",
-        "author": "OpenWeatherMap",
-        "url_img": image_url
-    }]
-
+    image_url    = f"{BASE_URL}/current.jpg"
+    weather_json = [{"location": "Budapest", "title": f"{weather_hu} {temp}C",
+                     "author": "OpenWeatherMap", "url_img": image_url}]
     with open("weather.json", "w", encoding="utf-8") as f:
         json.dump(weather_json, f, ensure_ascii=False, indent=2)
-
-    print(f"✓ weather.json elkészült")
+    print("weather.json kesz")
 
 if __name__ == "__main__":
     main()
