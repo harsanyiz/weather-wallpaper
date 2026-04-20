@@ -88,7 +88,8 @@ def main():
     img = Image.open(src).convert("RGB")
     W, H = img.size
 
-    bx, by, bw, bh = (W - WIDGET_WIDTH) // 2, WIDGET_Y, WIDGET_WIDTH, WIDGET_HEIGHT
+    OFFSET_LEFT = 50  # Ezt az értéket növelheted vagy csökkentheted
+    bx, by, bw, bh = OFFSET_LEFT, WIDGET_Y, WIDGET_WIDTH, WIDGET_HEIGHT
     region = img.crop((bx, by, bx + bw, by + bh)).convert("L")
     avg_brightness = ImageStat.Stat(region).mean[0]
     colors = get_text_colors(avg_brightness)
