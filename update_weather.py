@@ -13,7 +13,7 @@ BRANCH = "main"
 BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images"
 
 # ============================================================
-# 4K KONFIGURÁCIÓ - IKONOKKAL AZ ELŐREJELZÉSNÉL IS
+# 4K KONFIGURÁCIÓ - JAVÍTOTT, KISEBB FŐ IKON
 # ============================================================
 CITY = "Budapest"
 WIDGET_Y = 100        
@@ -84,20 +84,21 @@ def main():
     mid_y = WIDGET_Y + 100
     curr_x = OFFSET_LEFT + INNER_MARGIN
 
-    # --- 1. SZEKCIÓ: FŐ IKON + HŐFOK + ÁLLAPOT AZ IKON ALATT ---
+    # --- 1. SZEKCIÓ: FŐ IKON (JAVÍTOTT MÉRET) + HŐFOK + ÁLLAPOT AZ IKON ALATT ---
     icon_path = f"images/PNG/{icon_file}.png"
     if os.path.exists(icon_path):
         icon_img = Image.open(icon_path).convert("RGBA")
-        icon_img = icon_img.resize((160, 160), Image.Resampling.LANCZOS)
-        img.paste(icon_img, (int(curr_x), int(mid_y - 100)), icon_img)
+        # JAVÍTÁS: A fő ikont kisebbre és vékonyabbra vesszük (120x120), hogy harmóniában legyen a szöveggel
+        icon_img = icon_img.resize((120, 120), Image.Resampling.LANCZOS)
+        img.paste(icon_img, (int(curr_x), int(mid_y - 80)), icon_img)
         
-        # Állapot felirat (DERÜLT) pontosan az ikon alá
+        # Állapot felirat (DERÜLT) pontosan az ikon alá (pozíció finomhangolva)
         w_text = weather_hu.upper()
         w_bbox = draw.textbbox((0, 0), w_text, font=f_d)
-        w_offset = (160 - (w_bbox[2] - w_bbox[0])) // 2
-        draw.text((int(curr_x + w_offset), int(mid_y + 70)), w_text, font=f_d, fill=colors["dim"])
+        w_offset = (120 - (w_bbox[2] - w_bbox[0])) // 2
+        draw.text((int(curr_x + w_offset), int(mid_y + 50)), w_text, font=f_d, fill=colors["dim"])
         
-        curr_x += 190
+        curr_x += 160 # Kevesebb helyet foglal, így a szöveg közelebb kerül
 
     day_name = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat", "Vasárnap"][now_dt.weekday()].upper()
     draw.text((int(curr_x), int(mid_y - 90)), day_name, font=f_l, fill=colors["dim"])
@@ -116,7 +117,7 @@ def main():
         draw.text((int(curr_x), int(mid_y)), val, font=f_v, fill=colors["main"])
         curr_x += max(draw.textbbox((0,0), label.upper(), font=f_l)[2], draw.textbbox((0,0), val, font=f_v)[2]) + 90
 
-    # --- 3. SZEKCIÓ: 3 NAPOS ELŐREJELZÉS IKONOKKAL ---
+    # --- 3. SZEKCIÓ: 3 NAPOS ELŐREJELZÉS ---
     draw.line([(curr_x, WIDGET_Y+40), (curr_x, WIDGET_Y+160)], fill=colors["line"], width=3)
     curr_x += 80
     
@@ -135,7 +136,7 @@ def main():
         draw.text((int(curr_x), int(mid_y - 45)), f"{round(day['main']['temp'])}°C", font=f_v, fill=colors["main"])
         
         # Kis ikon az előrejelzés alá
-        f_icon_name = get_icon_name(day['weather'][0]['id'], False) # Nappali ikonok az előrejelzéshez
+        f_icon_name = get_icon_name(day['weather'][0]['id'], False)
         f_icon_path = f"images/PNG/{f_icon_name}.png"
         if os.path.exists(f_icon_path):
             f_icon = Image.open(f_icon_path).convert("RGBA").resize((50, 50), Image.Resampling.LANCZOS)
