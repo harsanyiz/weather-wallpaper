@@ -15,16 +15,17 @@ BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRAN
 # HORIZONTÁLIS DESIGN KONFIGURÁCIÓ
 # ============================================================
 CITY = "Budapest"
-WIDGET_WIDTH = 1300   # Kicsit szélesítettem, hogy beférjen az idő is
+WIDGET_WIDTH = 1600   # Megnövelve, hogy az előrejelzés is beférjen
 WIDGET_HEIGHT = 100
 WIDGET_Y = 50
+OFFSET_LEFT = 50      # A widget távolsága a bal széltől
 CORNER_RADIUS = 50
 INNER_MARGIN = 40
 
 FONT_TEMP = 42
 FONT_LABEL = 14
 FONT_VALUE = 18
-FONT_UPDATE = 12      # Frissítési idő betűmérete
+FONT_UPDATE = 12
 # ============================================================
 
 def find_font(bold=False):
@@ -52,6 +53,10 @@ def get_weather_hu(weather_id):
     mapping = {800: "Derült", 801: "Pár felhő", 804: "Borult", 511: "Ónos eső"}
     return mapping.get(weather_id, "Változékony")
 
+def get_day_hu(date_obj):
+    napok = ["Hét", "Ked", "Sze", "Csü", "Pén", "Szo", "Vas"]
+    return napok[date_obj.weekday()]
+
 def get_glass_color(brightness):
     return (255, 255, 255, 160) if brightness > 145 else (0, 0, 0, 140)
 
@@ -72,15 +77,34 @@ def create_blurred_card(image, box_x, box_y, box_width, box_height, glass_color,
 
 def main():
     try:
+        # Aktuális időjárás
         resp = requests.get(f"https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric")
         data = resp.json()
+        
+        # 3 napos előrejelzés lekérése
+        f_resp = requests.get(f"https://api.openweathermap.org/data/2.5/forecast?q={CITY}&appid={API_KEY}&units=metric")
+        f_data = f_resp.json()
+
         temp, weather_id = round(data["main"]["temp"]), data["weather"][0]["id"]
         tz_offset = data.get("timezone", 3600)
         now_dt = datetime.now(timezone(timedelta(seconds=tz_offset)))
-        update_time = now_dt.strftime("%H:%M") # Frissítés ideje
+        update_time = now_dt.strftime("%H:%M")
         is_night = now_dt.timestamp() < data["sys"]["sunrise"] or now_dt.timestamp() > data["sys"]["sunset"]
         image_name = get_image_name(weather_id, is_night)
         weather_hu = get_weather_hu(weather_id)
+
+        # Előrejelzés feldolgozása (következő 3 nap délutáni adatai)
+        forecast_list = []
+        seen_days = set()
+        today = now_dt.date()
+        for entry in f_data['list']:
+            dt_obj = datetime.fromtimestamp(entry['dt'], tz=timezone(timedelta(seconds=tz_offset)))
+            day_date = dt_obj.date()
+            if day_date > today and day_date not in seen_days and dt_obj.hour >= 12:
+                forecast_list.append(entry)
+                seen_days.add(day_date)
+            if len(forecast_list) == 3: break
+
     except Exception as e:
         print(f"Hiba: {e}"); return
 
@@ -88,7 +112,6 @@ def main():
     img = Image.open(src).convert("RGB")
     W, H = img.size
 
-    OFFSET_LEFT = 50  # Ezt az értéket növelheted vagy csökkentheted
     bx, by, bw, bh = OFFSET_LEFT, WIDGET_Y, WIDGET_WIDTH, WIDGET_HEIGHT
     region = img.crop((bx, by, bx + bw, by + bh)).convert("L")
     avg_brightness = ImageStat.Stat(region).mean[0]
@@ -129,7 +152,21 @@ def main():
         draw.text((curr_x, mid_y), val, font=f_v, fill=colors["main"])
         curr_x += max(draw.textbbox((0,0), label.upper(), font=f_l)[2], draw.textbbox((0,0), val, font=f_v)[2]) + 50
 
-    # 3. Frissítési idő (jobb szélre igazítva)
+    # 3. ÚJ: Előrejelzés rész
+    # Újabb elválasztó vonal az adatok után
+    draw.line([(curr_x, by+25), (curr_x, by+bh-25)], fill=colors["line"], width=2)
+    curr_x += 40
+
+    for day in forecast_list:
+        dt_obj = datetime.fromtimestamp(day['dt'])
+        day_name = get_day_hu(dt_obj)
+        f_temp = f"{round(day['main']['temp'])}°C"
+        
+        draw.text((curr_x, mid_y - 20), day_name.upper(), font=f_l, fill=colors["dim"])
+        draw.text((curr_x, mid_y), f_temp, font=f_v, fill=colors["main"])
+        curr_x += 100 # Távolság a napok között
+
+    # 4. Frissítési idő (jobb szélre igazítva)
     update_txt = f"FRISSÍTVE: {update_time}"
     u_w = draw.textbbox((0,0), update_txt, font=f_u)[2]
     draw.text((bx + bw - u_w - INNER_MARGIN, mid_y - 8), update_txt, font=f_u, fill=colors["dim"])
