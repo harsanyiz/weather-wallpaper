@@ -1,7 +1,6 @@
 import requests
 import json
 import os
-import time  # <--- Hozzáadva az időbélyeghez
 from datetime import datetime, timezone, timedelta
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageStat
 
@@ -15,23 +14,23 @@ BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRAN
 # KONFIGURÁCIÓ - EZT A RÉSZT FRISSÍTI A DESIGNER
 # ============================================================
 CITY = "Budapest"
-WIDGET_WIDTH = 300
-WIDGET_X = 1555
-WIDGET_Y = 265
-CORNER_RADIUS = 24
-INNER_MARGIN = 30
+WIDGET_WIDTH = 325
+WIDGET_X = 1560
+WIDGET_Y = 205
+CORNER_RADIUS = 26
+INNER_MARGIN = 34
 COLUMNS = 1
 FORECAST_DAYS = 3
 
 # Betűméretek
-FONT_TEMP = 68
-FONT_LABEL = 15
-FONT_VALUE = 17
-FONT_FOOTER = 12
+FONT_TEMP = 77
+FONT_LABEL = 17
+FONT_VALUE = 19
+FONT_FOOTER = 14
 FONT_FORECAST = 14
 
 # Megjelenítendő adatok (sorrendben!)
-VISIBLE_FIELDS = ["feels","weather","clouds","rain_chance","humidity","wind"]
+VISIBLE_FIELDS = ["feels","clouds","weather","rain_chance","humidity","wind","gust"]
 
 # Üveglap stílus: "auto", "dark", "light", "custom"
 GLASS_STYLE = "auto"
@@ -362,22 +361,12 @@ def main():
     img.convert("RGB").save(dst, "JPEG", quality=95)
     print("current.jpg mentve")
 
-    # ============================================================
-    # MÓDOSÍTOTT RÉSZ: Dinamikus URL a cache ellen
-    # ============================================================
-    v_param = int(time.time())
-    image_url = f"{BASE_URL}/current.jpg?v={v_param}"
-    
-    weather_json = {
-        "location": CITY, 
-        "title": f"{weather_hu} {temp}C",
-        "author": "OpenWeatherMap", 
-        "image_url": image_url
-    }
-    
+    image_url    = f"{BASE_URL}/current.jpg"
+    weather_json = [{"location": CITY, "title": f"{weather_hu} {temp}C",
+                     "author": "OpenWeatherMap", "url_img": image_url}]
     with open("weather.json", "w", encoding="utf-8") as f:
         json.dump(weather_json, f, ensure_ascii=False, indent=2)
-    print(f"weather.json kesz (URL: {image_url})")
+    print("weather.json kesz")
 
 if __name__ == "__main__":
     main()
