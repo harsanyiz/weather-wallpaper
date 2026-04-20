@@ -14,26 +14,26 @@ BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRAN
 # KONFIGURÁCIÓ - EZT A RÉSZT FRISSÍTI A DESIGNER
 # ============================================================
 CITY = "Budapest"
-WIDGET_WIDTH = 380
-WIDGET_X = 1500      # vízszintes pozíció (0-1920)
-WIDGET_Y = 340       # függőleges pozíció (0-1080)
-CORNER_RADIUS = 30
-INNER_MARGIN = 40
-COLUMNS = 2          # 1 vagy 2 oszlop
-FORECAST_DAYS = 1    # 0, 1, 2, 3 nap előrejelzés
+WIDGET_WIDTH = 325
+WIDGET_X = 1560
+WIDGET_Y = 205
+CORNER_RADIUS = 26
+INNER_MARGIN = 34
+COLUMNS = 1
+FORECAST_DAYS = 3
 
 # Betűméretek
-FONT_TEMP = 90
-FONT_LABEL = 20
-FONT_VALUE = 22
-FONT_FOOTER = 16
+FONT_TEMP = 77
+FONT_LABEL = 17
+FONT_VALUE = 19
+FONT_FOOTER = 14
 FONT_FORECAST = 14
 
 # Megjelenítendő adatok (sorrendben!)
-VISIBLE_FIELDS = ["temp", "feels", "weather", "rain_chance", "humidity", "wind"]
+VISIBLE_FIELDS = ["feels","clouds","weather","rain_chance","humidity","wind","gust"]
 
 # Üveglap stílus: "auto", "dark", "light", "custom"
-GLASS_STYLE = "auto"
+GLASS_STYLE = "custom"
 # Egyéni szín (HSL) - csak ha GLASS_STYLE = "custom"
 CUSTOM_GLASS_HSL = None  # (hue, saturation, lightness, opacity) pl: (220, 70, 25, 55)
 # ============================================================
