@@ -27,7 +27,7 @@ FONT_TEMP = 81
 FONT_LABEL = 18
 FONT_VALUE = 20
 FONT_FOOTER = 14
-FONT_FORECAST = 19
+FONT_FORECAST = 17
 
 # Megjelenítendő adatok (sorrendben!)
 VISIBLE_FIELDS = ["feels","weather","rain_chance","humidity","wind"]
@@ -36,7 +36,7 @@ VISIBLE_FIELDS = ["feels","weather","rain_chance","humidity","wind"]
 GLASS_STYLE = "custom"
 # Egyéni szín (HSL) - csak ha GLASS_STYLE = "custom"
 # Példa: CUSTOM_GLASS_HSL = (220, 70, 25, 55)  -> sötétkék, 55% átlátszóság
-CUSTOM_GLASS_HSL = None
+CUSTOM_GLASS_HSL = (220, 70, 25, 55)
 # ============================================================
 
 # Font keresési sorrend - Noto elsőként, DejaVu fallback
