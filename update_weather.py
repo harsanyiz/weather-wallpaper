@@ -1,6 +1,7 @@
 import requests
 import json
 import os
+import time  # <--- Hozzáadva az időbélyeghez
 from datetime import datetime, timezone, timedelta
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageStat
 
@@ -361,12 +362,22 @@ def main():
     img.convert("RGB").save(dst, "JPEG", quality=95)
     print("current.jpg mentve")
 
-    image_url    = f"{BASE_URL}/current.jpg"
-    weather_json = [{"location": CITY, "title": f"{weather_hu} {temp}C",
-                     "author": "OpenWeatherMap", "url_img": image_url}]
+    # ============================================================
+    # MÓDOSÍTOTT RÉSZ: Dinamikus URL a cache ellen
+    # ============================================================
+    v_param = int(time.time())
+    image_url = f"{BASE_URL}/current.jpg?v={v_param}"
+    
+    weather_json = {
+        "location": CITY, 
+        "title": f"{weather_hu} {temp}C",
+        "author": "OpenWeatherMap", 
+        "image_url": image_url
+    }
+    
     with open("weather.json", "w", encoding="utf-8") as f:
         json.dump(weather_json, f, ensure_ascii=False, indent=2)
-    print("weather.json kesz")
+    print(f"weather.json kesz (URL: {image_url})")
 
 if __name__ == "__main__":
     main()
