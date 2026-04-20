@@ -12,16 +12,18 @@ GITHUB_REPO = "weather-wallpaper"
 BRANCH = "main"
 BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images"
 
+# --- FULL HD MÉRETEZÉS (1920x1080) ---
 CITY = "Budapest"
-WIDGET_Y = 100        
-OFFSET_LEFT = 135     
-INNER_MARGIN = 80     
+WIDGET_Y = 50         # 4K-hoz képest felezve
+OFFSET_LEFT = 67      # 4K-hoz képest felezve
+INNER_MARGIN = 40     
 
-FONT_TEMP = 95        
-FONT_DESC = 32        
-FONT_LABEL = 28       
-FONT_VALUE = 36       
-FONT_UPDATE = 22      
+# Betűméretek felezve a 4K-hoz képest
+FONT_TEMP = 48        
+FONT_DESC = 18        
+FONT_LABEL = 16       
+FONT_VALUE = 20       
+FONT_UPDATE = 12      
 
 def get_f(size, bold=False):
     path = "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"
@@ -62,63 +64,55 @@ def main():
         weather_hu = {800: "Derült", 801: "Pár felhő", 802: "Részben felhős", 803: "Felhős", 804: "Borult"}.get(weather_id, "Változékony")
     except: return
 
-    # --- 1. LÉPÉS: ALAP KÉP ELŐKÉSZÍTÉSE (RGBA-ban dolgozunk a rétegek miatt) ---
+    # --- 1. FULL HD ALAP ---
     bg_path = f"images/{bg_name}.jpg"
     bg = Image.open(bg_path if os.path.exists(bg_path) else "images/sunny_day.jpg").convert("RGBA")
-    if bg.size != (3840, 2160):
-        bg = bg.resize((3840, 2160), Image.Resampling.LANCZOS)
+    # 1920x1080-ra méretezzük!
+    bg = bg.resize((1920, 1080), Image.Resampling.LANCZOS)
     
     draw = ImageDraw.Draw(bg)
     colors = {"main": (255,255,255,255), "dim": (255,255,255,180), "line": (255,255,255,40)}
     f_t, f_d, f_l, f_v, f_u = get_f(FONT_TEMP, True), get_f(FONT_DESC), get_f(FONT_LABEL), get_f(FONT_VALUE, True), get_f(FONT_UPDATE)
     
     curr_x = OFFSET_LEFT + INNER_MARGIN
-    mid_y = WIDGET_Y + 100
+    mid_y = WIDGET_Y + 50
 
-    # --- 2. LÉPÉS: FŐ IKON BEILLESZTÉSE (MASZKKAL) ---
+    # --- 2. IKONOK ---
     icon_p = f"images/PNG/{main_icon_name}"
     if os.path.exists(icon_p):
-        m_icon = Image.open(icon_p).convert("RGBA").resize((110, 110), Image.Resampling.LANCZOS)
-        # Itt a trükk: harmadik paraméterként is átadjuk az ikont (ez a maszk)
-        bg.paste(m_icon, (int(curr_x), int(mid_y - 45)), m_icon)
-        curr_x += 140
+        m_icon = Image.open(icon_p).convert("RGBA").resize((60, 60), Image.Resampling.LANCZOS)
+        bg.paste(m_icon, (int(curr_x), int(mid_y - 25)), m_icon)
+        curr_x += 80
 
-    # Szövegek
     day_txt = (["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat", "Vasárnap"][now_dt.weekday()]).upper()
-    draw.text((curr_x, mid_y - 85), day_txt, font=f_l, fill=colors["dim"])
-    draw.text((curr_x, mid_y - 65), f"{temp}°C", font=f_t, fill=colors["main"])
-    draw.text((curr_x, mid_y + 40), weather_hu.upper(), font=f_d, fill=colors["dim"])
+    draw.text((curr_x, mid_y - 45), day_txt, font=f_l, fill=colors["dim"])
+    draw.text((curr_x, mid_y - 35), f"{temp}°C", font=f_t, fill=colors["main"])
+    draw.text((curr_x, mid_y + 20), weather_hu.upper(), font=f_d, fill=colors["dim"])
     
-    curr_x += draw.textbbox((0,0), f"{temp}°C", font=f_t)[2] + 80
-    draw.line([(curr_x, WIDGET_Y+40), (curr_x, WIDGET_Y+160)], fill=colors["line"], width=3)
-    curr_x += 80
+    curr_x += draw.textbbox((0,0), f"{temp}°C", font=f_t)[2] + 40
+    draw.line([(curr_x, WIDGET_Y+20), (curr_x, WIDGET_Y+80)], fill=colors["line"], width=2)
+    curr_x += 40
 
-    # --- 3. LÉPÉS: RÉSZLETEK IKONOKKAL ---
+    # Részletek ikonokkal (kicsiben)
     fields = [("Érzet", f"{round(resp['main']['feels_like'])}°C", "day_clear.png"),
-              ("Szél", f"{round(resp['wind']['speed']*3.6)} km/h", "wind.png"),
-              ("Pára", f"{resp['main']['humidity']}%", "rain.png")]
+              ("Szél", f"{round(resp['wind']['speed']*3.6)} km/h", "wind.png")]
     
     for label, val, i_name in fields:
         i_p = f"images/PNG/{i_name}"
         if os.path.exists(i_p):
-            s_icon = Image.open(i_p).convert("RGBA").resize((35, 35), Image.Resampling.LANCZOS)
-            bg.paste(s_icon, (int(curr_x - 45), int(mid_y - 5)), s_icon)
-        draw.text((curr_x, mid_y - 50), label.upper(), font=f_l, fill=colors["dim"])
+            s_icon = Image.open(i_p).convert("RGBA").resize((20, 20), Image.Resampling.LANCZOS)
+            bg.paste(s_icon, (int(curr_x - 25), int(mid_y - 2)), s_icon)
+        draw.text((curr_x, mid_y - 25), label.upper(), font=f_l, fill=colors["dim"])
         draw.text((curr_x, mid_y), val, font=f_v, fill=colors["main"])
-        curr_x += max(draw.textbbox((0,0), label.upper(), font=f_l)[2], draw.textbbox((0,0), val, font=f_v)[2]) + 100
+        curr_x += 80
 
-    # Frissítve felirat
-    draw.text((curr_x + 20, mid_y - 12), f"FRISSÍTVE: {update_time}", font=f_u, fill=colors["dim"])
-
-    # --- 4. LÉPÉS: A "TV-BIZTOS" MENTÉS ---
-    # Létrehozunk egy üres RGB képet, és rátesszük a munkánkat (ez megöli az átlátszóságot)
+    # --- 3. MENTÉS ---
     final_img = Image.new("RGB", bg.size, (0, 0, 0))
-    final_img.paste(bg, mask=bg.split()[3]) # Az alpha csatorna alapján másolunk
+    final_img.paste(bg, mask=bg.split()[3])
     
-    # Kényszerített tiszta mentés metaadatok nélkül
-    final_img.save("images/current.jpg", "JPEG", quality=90, optimize=True, subsampling=0)
+    # Kisebb fájlméret, hogy a TV biztosan szeresse
+    final_img.save("images/current.jpg", "JPEG", quality=85, optimize=True)
     
-    # JSON frissítése
     v_param = int(time.time())
     weather_json = [{"location": CITY, "title": f"{weather_hu} {temp}C", "image_url": f"{BASE_URL}/current.jpg?v={v_param}"}]
     with open("weather.json", "w", encoding="utf-8") as f:
