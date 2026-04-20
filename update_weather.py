@@ -3,7 +3,7 @@ import json
 import os
 import time
 from datetime import datetime, timezone, timedelta
-from PIL import Image, ImageDraw, ImageFont, ImageStat
+from PIL import Image, ImageDraw, ImageFont
 
 # API és GitHub adatok
 API_KEY = os.environ.get("OWM_API_KEY")
@@ -13,7 +13,7 @@ BRANCH = "main"
 BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images"
 
 # ============================================================
-# 4K KONFIGURÁCIÓ - PONTOS PNG ELÉRÉSSEL
+# 4K KONFIGURÁCIÓ - IKONOKKAL AZ ELŐREJELZÉSNÉL IS
 # ============================================================
 CITY = "Budapest"
 WIDGET_Y = 100        
@@ -44,7 +44,6 @@ def get_bg_name(weather_id, is_night):
     else: return f"cloudy_{suffix}"
 
 def get_icon_name(weather_id, is_night):
-    """Leképezi az ID-t a feltöltött PNG fájlneveidre"""
     suffix = "night" if is_night else "day"
     if weather_id == 800: return f"{suffix}_clear"
     elif weather_id in [801, 802]: return f"{suffix}_partial_cloud"
@@ -52,7 +51,7 @@ def get_icon_name(weather_id, is_night):
     elif 500 <= weather_id <= 531: return f"{suffix}_rain"
     elif 600 <= weather_id <= 622: return f"{suffix}_snow"
     elif 701 <= weather_id <= 741: return "fog"
-    elif 200 <= weather_id <= 232: return f"{suffix}_rain_thunder" # vagy thunder.png
+    elif 200 <= weather_id <= 232: return f"{suffix}_rain_thunder"
     return "cloudy"
 
 def main():
@@ -73,7 +72,7 @@ def main():
     except Exception as e:
         print(f"Hiba: {e}"); return
 
-    # Háttérkép
+    # Háttérkép betöltése
     src = f"images/{bg_file}.jpg"
     img = Image.open(src if os.path.exists(src) else "images/sunny_day.jpg").convert("RGB")
     img = img.resize((3840, 2160), Image.Resampling.LANCZOS).convert("RGBA")
@@ -85,36 +84,39 @@ def main():
     mid_y = WIDGET_Y + 100
     curr_x = OFFSET_LEFT + INNER_MARGIN
 
-    # --- IKON BETÖLTÉSE AZ images/PNG/ MAPPÁBÓL ---
+    # --- 1. SZEKCIÓ: FŐ IKON + HŐFOK + ÁLLAPOT AZ IKON ALATT ---
     icon_path = f"images/PNG/{icon_file}.png"
     if os.path.exists(icon_path):
         icon_img = Image.open(icon_path).convert("RGBA")
         icon_img = icon_img.resize((160, 160), Image.Resampling.LANCZOS)
-        img.paste(icon_img, (int(curr_x), int(mid_y - 80)), icon_img)
+        img.paste(icon_img, (int(curr_x), int(mid_y - 100)), icon_img)
+        
+        # Állapot felirat (DERÜLT) pontosan az ikon alá
+        w_text = weather_hu.upper()
+        w_bbox = draw.textbbox((0, 0), w_text, font=f_d)
+        w_offset = (160 - (w_bbox[2] - w_bbox[0])) // 2
+        draw.text((int(curr_x + w_offset), int(mid_y + 70)), w_text, font=f_d, fill=colors["dim"])
+        
         curr_x += 190
 
-    # Szöveges adatok
     day_name = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat", "Vasárnap"][now_dt.weekday()].upper()
     draw.text((int(curr_x), int(mid_y - 90)), day_name, font=f_l, fill=colors["dim"])
     draw.text((int(curr_x), int(mid_y - 65)), f"{temp}°C", font=f_t, fill=colors["main"])
-    draw.text((int(curr_x), int(mid_y + 40)), weather_hu.upper(), font=f_d, fill=colors["dim"])
     
     curr_x += draw.textbbox((0,0), f"{temp}°C", font=f_t)[2] + 80
     draw.line([(curr_x, WIDGET_Y+40), (curr_x, WIDGET_Y+160)], fill=colors["line"], width=3)
     curr_x += 80
 
-    # Részletek (Érzet, Szél, Pára)
-    details = [
-        ("Érzet", f"{round(curr_r['main']['feels_like'])}°C"),
-        ("Szél", f"{round(curr_r['wind']['speed']*3.6)} km/h"),
-        ("Pára", f"{curr_r['main']['humidity']}%")
-    ]
+    # --- 2. SZEKCIÓ: RÉSZLETEK ---
+    details = [("Érzet", f"{round(curr_r['main']['feels_like'])}°C"),
+               ("Szél", f"{round(curr_r['wind']['speed']*3.6)} km/h"),
+               ("Pára", f"{curr_r['main']['humidity']}%")]
     for label, val in details:
         draw.text((int(curr_x), int(mid_y - 50)), label.upper(), font=f_l, fill=colors["dim"])
         draw.text((int(curr_x), int(mid_y)), val, font=f_v, fill=colors["main"])
         curr_x += max(draw.textbbox((0,0), label.upper(), font=f_l)[2], draw.textbbox((0,0), val, font=f_v)[2]) + 90
 
-    # Előrejelzés
+    # --- 3. SZEKCIÓ: 3 NAPOS ELŐREJELZÉS IKONOKKAL ---
     draw.line([(curr_x, WIDGET_Y+40), (curr_x, WIDGET_Y+160)], fill=colors["line"], width=3)
     curr_x += 80
     
@@ -129,13 +131,20 @@ def main():
 
     for day in forecast_list:
         d_name = ["Hét", "Ked", "Sze", "Csü", "Pén", "Szo", "Vas"][datetime.fromtimestamp(day['dt']).weekday()].upper()
-        draw.text((int(curr_x), int(mid_y - 50)), d_name, font=f_l, fill=colors["dim"])
-        draw.text((int(curr_x), int(mid_y)), f"{round(day['main']['temp'])}°C", font=f_v, fill=colors["main"])
+        draw.text((int(curr_x), int(mid_y - 80)), d_name, font=f_l, fill=colors["dim"])
+        draw.text((int(curr_x), int(mid_y - 45)), f"{round(day['main']['temp'])}°C", font=f_v, fill=colors["main"])
+        
+        # Kis ikon az előrejelzés alá
+        f_icon_name = get_icon_name(day['weather'][0]['id'], False) # Nappali ikonok az előrejelzéshez
+        f_icon_path = f"images/PNG/{f_icon_name}.png"
+        if os.path.exists(f_icon_path):
+            f_icon = Image.open(f_icon_path).convert("RGBA").resize((50, 50), Image.Resampling.LANCZOS)
+            img.paste(f_icon, (int(curr_x), int(mid_y + 10)), f_icon)
+        
         curr_x += 160
 
     draw.text((int(curr_x + 20), int(mid_y - 15)), f"FRISSÍTVE: {update_time}", font=f_u, fill=colors["dim"])
 
-    # Mentés és JSON frissítés
     img.convert("RGB").save("images/current.jpg", "JPEG", quality=100, subsampling=0)
     
     v_param = int(time.time())
