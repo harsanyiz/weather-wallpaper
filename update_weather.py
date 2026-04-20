@@ -36,7 +36,7 @@ VISIBLE_FIELDS = ["feels","clouds","weather","rain_chance","humidity","wind","gu
 GLASS_STYLE = "auto"
 # Egyéni szín (HSL) - csak ha GLASS_STYLE = "custom"
 # Példa: CUSTOM_GLASS_HSL = (220, 70, 25, 55)  -> sötétkék, 55% átlátszóság
-CUSTOM_GLASS_HSL = None
+CUSTOM_GLASS_HSL = (220, 70, 25, 55)
 # ============================================================
 
 # Font keresési sorrend - Noto elsőként, DejaVu fallback
