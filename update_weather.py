@@ -15,7 +15,7 @@ BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRAN
 # HORIZONTÁLIS DESIGN KONFIGURÁCIÓ
 # ============================================================
 CITY = "Budapest"
-WIDGET_WIDTH = 1200
+WIDGET_WIDTH = 1300   # Kicsit szélesítettem, hogy beférjen az idő is
 WIDGET_HEIGHT = 100
 WIDGET_Y = 50
 CORNER_RADIUS = 50
@@ -24,7 +24,7 @@ INNER_MARGIN = 40
 FONT_TEMP = 42
 FONT_LABEL = 14
 FONT_VALUE = 18
-
+FONT_UPDATE = 12      # Frissítési idő betűmérete
 # ============================================================
 
 def find_font(bold=False):
@@ -77,26 +77,23 @@ def main():
         temp, weather_id = round(data["main"]["temp"]), data["weather"][0]["id"]
         tz_offset = data.get("timezone", 3600)
         now_dt = datetime.now(timezone(timedelta(seconds=tz_offset)))
+        update_time = now_dt.strftime("%H:%M") # Frissítés ideje
         is_night = now_dt.timestamp() < data["sys"]["sunrise"] or now_dt.timestamp() > data["sys"]["sunset"]
         image_name = get_image_name(weather_id, is_night)
         weather_hu = get_weather_hu(weather_id)
     except Exception as e:
-        print(f"Adatlekérési hiba: {e}"); return
+        print(f"Hiba: {e}"); return
 
     src, dst = f"images/{image_name}.jpg", "images/current.jpg"
     img = Image.open(src).convert("RGB")
     W, H = img.size
 
-    # Widget pozíció (középre)
     bx, by, bw, bh = (W - WIDGET_WIDTH) // 2, WIDGET_Y, WIDGET_WIDTH, WIDGET_HEIGHT
-    
-    # Fényerő mérése a szövegszínhez
     region = img.crop((bx, by, bx + bw, by + bh)).convert("L")
     avg_brightness = ImageStat.Stat(region).mean[0]
     colors = get_text_colors(avg_brightness)
     glass_c = get_glass_color(avg_brightness)
 
-    # Kártya paste
     card = create_blurred_card(img, bx, by, bw, bh, glass_c, CORNER_RADIUS)
     img = img.convert("RGBA")
     img.paste(card, (bx, by), card)
@@ -105,8 +102,8 @@ def main():
     f_t = get_f(FONT_TEMP, True)
     f_l = get_f(FONT_LABEL)
     f_v = get_f(FONT_VALUE, True)
+    f_u = get_f(FONT_UPDATE)
 
-    # Rajzolás
     curr_x = bx + INNER_MARGIN
     mid_y = by + (bh // 2)
 
@@ -131,17 +128,20 @@ def main():
         draw.text((curr_x, mid_y), val, font=f_v, fill=colors["main"])
         curr_x += max(draw.textbbox((0,0), label.upper(), font=f_l)[2], draw.textbbox((0,0), val, font=f_v)[2]) + 50
 
-    # Mentés
+    # 3. Frissítési idő (jobb szélre igazítva)
+    update_txt = f"FRISSÍTVE: {update_time}"
+    u_w = draw.textbbox((0,0), update_txt, font=f_u)[2]
+    draw.text((bx + bw - u_w - INNER_MARGIN, mid_y - 8), update_txt, font=f_u, fill=colors["dim"])
+
     img.convert("RGB").save(dst, "JPEG", quality=95)
     
-    # JSON mentés LISTA formátumban (ez kell a TV-nek!)
     v_param = int(time.time())
     image_url = f"{BASE_URL}/current.jpg?v={v_param}"
     
     weather_json = [{
-        "location": CITY,
+        "location": CITY, 
         "title": f"{weather_hu} {temp}C",
-        "author": "Gemini Design",
+        "author": "Gemini Design", 
         "image_url": image_url,
         "url_img": image_url
     }]
