@@ -35,11 +35,9 @@ VISIBLE_FIELDS = ["feels","clouds","weather","rain_chance","humidity","wind","gu
 # Üveglap stílus: "auto", "dark", "light", "custom"
 GLASS_STYLE = "auto"
 # Egyéni szín (HSL) - csak ha GLASS_STYLE = "custom"
-# Példa: CUSTOM_GLASS_HSL = (220, 70, 25, 55)  -> sötétkék, 55% átlátszóság
-CUSTOM_GLASS_HSL = (220, 70, 25, 55)
+CUSTOM_GLASS_HSL = None
 # ============================================================
 
-# Font keresési sorrend - Noto elsőként, DejaVu fallback
 FONT_PATHS_REGULAR = [
     "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
     "/usr/share/fonts/truetype/noto/NotoSans[wdth,wght].ttf",
@@ -52,19 +50,55 @@ FONT_PATHS_BOLD = [
     "/usr/share/fonts/noto/NotoSans-Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
 ]
+FONT_PATHS_EMOJI = [
+    "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+    "/usr/share/fonts/noto/NotoColorEmoji.ttf",
+    "/usr/share/fonts/truetype/noto/NotoEmoji-Regular.ttf",
+]
 
 def find_font(bold=False):
     paths = FONT_PATHS_BOLD if bold else FONT_PATHS_REGULAR
     for p in paths:
-        if os.path.exists(p):
-            return p
+        if os.path.exists(p): return p
+    return None
+
+def find_emoji_font():
+    for p in FONT_PATHS_EMOJI:
+        if os.path.exists(p): return p
     return None
 
 def get_f(size, bold=False):
     path = find_font(bold)
-    if path:
-        return ImageFont.truetype(path, size)
+    if path: return ImageFont.truetype(path, size)
     return ImageFont.load_default()
+
+def get_emoji_f(size):
+    path = find_emoji_font()
+    if path:
+        try: return ImageFont.truetype(path, size)
+        except: pass
+    return None
+
+def draw_text_with_emoji(draw, pos, text, font, emoji_font, fill):
+    """Szöveget rajzol – ha van emoji font, azzal rajzolja az emoji karaktereket"""
+    if emoji_font is None:
+        draw.text(pos, text, font=font, fill=fill)
+        return
+    x, y = pos
+    for char in text:
+        if ord(char) > 127 and emoji_font:
+            try:
+                draw.text((x, y), char, font=emoji_font, fill=fill, embedded_color=True)
+                bb = draw.textbbox((0, 0), char, font=emoji_font)
+                x += bb[2] - bb[0]
+            except:
+                draw.text((x, y), char, font=font, fill=fill)
+                bb = draw.textbbox((0, 0), char, font=font)
+                x += bb[2] - bb[0]
+        else:
+            draw.text((x, y), char, font=font, fill=fill)
+            bb = draw.textbbox((0, 0), char, font=font)
+            x += bb[2] - bb[0]
 
 def get_image_name(weather_id, is_night):
     suffix = "night" if is_night else "day"
@@ -87,6 +121,22 @@ def get_weather_hu(weather_id):
     if weather_id in range(500, 532): return "Es\u0151"
     if weather_id in range(300, 322): return "Szit\u00e1l\u00e1s"
     return "V\u00e1ltoz\u00e9kony"
+
+def get_weather_icon(weather_id, is_night):
+    if weather_id in [611, 612, 613, 615, 616]: return "\U0001f328\ufe0f"
+    elif weather_id in [620, 621, 622, 600, 601, 602]: return "\u2744\ufe0f"
+    elif weather_id == 511: return "\U0001f9ca"
+    elif weather_id in [781, 771, 762, 761, 751, 731, 721, 711, 701]: return "\U0001f32b\ufe0f"
+    elif weather_id in range(200, 233): return "\u26c8\ufe0f"
+    elif weather_id in range(500, 532): return "\U0001f327\ufe0f"
+    elif weather_id in range(300, 322): return "\U0001f326\ufe0f"
+    elif weather_id == 800: return "\U0001f319" if is_night else "\u2600\ufe0f"
+    elif weather_id in [801, 802]: return "\U0001f31c" if is_night else "\u26c5"
+    else: return "\u2601\ufe0f"
+
+def get_forecast_icon(d):
+    icons = ["\u2600\ufe0f", "\u26c5", "\u2601\ufe0f", "\U0001f327\ufe0f", "\u26c8\ufe0f"]
+    return icons[(d-1) % len(icons)]
 
 def get_rain_chance(weather_id):
     if weather_id in range(200, 233): return 80
@@ -111,12 +161,9 @@ def hsl_to_rgba(h, s, l, a):
 def get_glass_color(brightness):
     if GLASS_STYLE == "custom" and CUSTOM_GLASS_HSL and len(CUSTOM_GLASS_HSL) == 4:
         return hsl_to_rgba(*CUSTOM_GLASS_HSL)
-    elif GLASS_STYLE == "dark":
-        return (0, 0, 0, 140)
-    elif GLASS_STYLE == "light":
-        return (255, 255, 255, 140)
-    else:  # auto
-        return (255, 255, 255, 140) if brightness > 145 else (0, 0, 0, 110)
+    elif GLASS_STYLE == "dark": return (0, 0, 0, 140)
+    elif GLASS_STYLE == "light": return (255, 255, 255, 140)
+    else: return (255, 255, 255, 140) if brightness > 145 else (0, 0, 0, 110)
 
 def get_text_colors(brightness):
     is_light = (
@@ -138,7 +185,6 @@ def create_blurred_card(image, box_x, box_y, box_width, box_height, glass_color,
     blurred = blurred.convert("RGBA")
     blurred.putalpha(mask)
     result = Image.alpha_composite(blurred, glass)
-    # Border maszkkal levagva hogy ne lucsogjunk ki a sarkokon
     border_color = (255, 255, 255, 50) if glass_color[0] < 128 else (0, 0, 0, 30)
     border = Image.new("RGBA", (box_width, box_height), (0, 0, 0, 0))
     ImageDraw.Draw(border).rounded_rectangle((1, 1, box_width-1, box_height-1), radius=radius, outline=border_color, width=1)
@@ -168,43 +214,51 @@ def main():
     img = Image.open(src).convert("RGB")
     W, H = img.size
 
-    active_fields  = [f for f in VISIBLE_FIELDS if f != "temp"]
-    row_h          = 55
+    active_fields   = [f for f in VISIBLE_FIELDS if f != "temp"]
+    row_h           = 55
     forecast_height = (20 + FONT_FORECAST + 10 + FORECAST_DAYS * 48) if FORECAST_DAYS > 0 else 0
     bh = 40 + (FONT_TEMP + 28) + (len(active_fields) * row_h) + forecast_height + 50
     bw = WIDGET_WIDTH
-    bx = min(WIDGET_X, W - bw - 5)
-    by = min(WIDGET_Y, H - bh - 5)
+    bx = max(0, min(WIDGET_X, W - bw))
+    by = max(0, min(WIDGET_Y, H - bh))
 
     region         = img.crop((bx, by, bx + bw, by + bh)).convert("L")
     avg_brightness = ImageStat.Stat(region).mean[0]
     glass_c        = get_glass_color(avg_brightness)
     colors         = get_text_colors(avg_brightness)
 
-    # Biztosan a kepen belul marad a blur crop
-    bx = max(0, min(bx, W - bw))
-    by = max(0, min(by, H - bh))
     card = create_blurred_card(img, bx, by, bw, bh, glass_c, CORNER_RADIUS)
     img  = img.convert("RGBA")
     img.paste(card, (bx, by), card)
     draw = ImageDraw.Draw(img)
 
-    f_t  = get_f(FONT_TEMP, True)
-    f_l  = get_f(FONT_LABEL)
-    f_v  = get_f(FONT_VALUE, True)
-    f_f  = get_f(FONT_FOOTER)
-    f_fc = get_f(FONT_FORECAST)
+    f_t      = get_f(FONT_TEMP, True)
+    f_l      = get_f(FONT_LABEL)
+    f_v      = get_f(FONT_VALUE, True)
+    f_f      = get_f(FONT_FOOTER)
+    f_fc     = get_f(FONT_FORECAST)
+    f_emoji  = get_emoji_f(FONT_LABEL + 2)
+    f_emoji_fc = get_emoji_f(FONT_FORECAST + 2)
 
-    # Melyik fontot hasznaljuk
-    font_path = find_font(False) or "default"
-    print(f"Font: {font_path}")
+    emoji_path = find_emoji_font()
+    print(f"Font: {find_font(False) or 'default'}")
+    print(f"Emoji font: {emoji_path or 'nincs - szoveg fallback'}")
 
     m  = INNER_MARGIN
     cy = by + 35
 
-    # Homerseklet
+    # Homerseklet + ido ikon kozepen
+    weather_icon = get_weather_icon(weather_id, is_night)
     txt = f"{temp}\u00b0C"
     tw  = draw.textbbox((0, 0), txt, font=f_t)[2]
+    # Ikon a homerseklet fole kozepre
+    if f_emoji:
+        try:
+            iw = draw.textbbox((0,0), weather_icon, font=f_emoji)[2]
+            draw.text((bx + (bw - iw) // 2, cy), weather_icon, font=f_emoji, fill=colors["main"], embedded_color=True)
+            cy += FONT_LABEL + 8
+        except:
+            pass
     draw.text((bx + (bw - tw) // 2, cy), txt, font=f_t, fill=colors["main"])
     cy += FONT_TEMP + 28
 
@@ -220,6 +274,18 @@ def main():
         "gust":       "SZ\u00c9LL\u00d6K\u00c9S",
         "clouds":     "FELH\u0150ZET"
     }
+    field_icons = {
+        "feels":      "\U0001f321\ufe0f",
+        "weather":    weather_icon,
+        "rain_chance":"\U0001f327\ufe0f",
+        "humidity":   "\U0001f4a7",
+        "wind":       "\U0001f32c\ufe0f",
+        "pressure":   "\U0001f4cf",
+        "uv":         "\u2600\ufe0f",
+        "visibility": "\U0001f441\ufe0f",
+        "gust":       "\U0001f300",
+        "clouds":     "\u2601\ufe0f"
+    }
     field_values = {
         "feels":      f"{feels} \u00b0C",
         "weather":    weather_hu.upper(),
@@ -233,11 +299,27 @@ def main():
         "clouds":     f"{data.get('clouds', {}).get('all', 45)}%"
     }
 
+    icon_size = FONT_LABEL + 2
     for field in active_fields:
-        draw.text((bx + m, cy), field_labels.get(field, field), font=f_l, fill=colors["dim"])
+        icon = field_icons.get(field, "")
+        label = field_labels.get(field, field)
         val = field_values.get(field, "")
-        vw  = draw.textbbox((0, 0), val, font=f_v)[2]
+
+        # Ikon + label bal oldalon
+        lx = bx + m
+        if f_emoji and icon:
+            try:
+                draw.text((lx, cy), icon, font=f_emoji, fill=colors["dim"], embedded_color=True)
+                iw = draw.textbbox((0,0), icon, font=f_emoji)[2]
+                lx += iw + 6
+            except:
+                pass
+        draw.text((lx, cy), label, font=f_l, fill=colors["dim"])
+
+        # Ertek jobb oldalon
+        vw = draw.textbbox((0, 0), val, font=f_v)[2]
         draw.text((bx + bw - m - vw, cy), val, font=f_v, fill=colors["main"])
+
         line_y = cy + row_h - 8
         draw.line([(bx + m, line_y), (bx + bw - m, line_y)], fill=colors["line"], width=1)
         cy += row_h
@@ -247,7 +329,7 @@ def main():
         cy += 10
         draw.line([(bx + m, cy), (bx + bw - m, cy)], fill=colors["line"], width=1)
         cy += 15
-        elore = "ELŐREJELZÉS"
+        elore = "EL\u0150REJELZ\u00c9S"
         etw   = draw.textbbox((0, 0), elore, font=f_fc)[2]
         draw.text((bx + (bw - etw) // 2, cy), elore, font=f_fc, fill=colors["dim"])
         cy += FONT_FORECAST + 10
@@ -256,6 +338,14 @@ def main():
             day_name = fc_labels[d-1] if d <= len(fc_labels) else f"+{d} NAP"
             temp_fc  = temp - d * 2
             draw.text((bx + m, cy), day_name, font=f_fc, fill=colors["dim"])
+            # Ikon kozepen
+            if f_emoji_fc:
+                try:
+                    fc_icon = get_forecast_icon(d)
+                    iw = draw.textbbox((0,0), fc_icon, font=f_emoji_fc)[2]
+                    draw.text((bx + (bw - iw) // 2, cy), fc_icon, font=f_emoji_fc, fill=colors["dim"], embedded_color=True)
+                except:
+                    pass
             fc_val = f"{temp_fc}\u00b0C"
             fvw    = draw.textbbox((0, 0), fc_val, font=f_fc)[2]
             draw.text((bx + bw - m - fvw, cy), fc_val, font=f_fc, fill=colors["main"])
