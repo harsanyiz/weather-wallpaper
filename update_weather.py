@@ -80,7 +80,7 @@ def main():
     # Soronkent 65px * 5 sor = 325, + homerseklet 135, + padding + footer
     row_h  = 65
     n_rows = 5
-    bw = 440
+    bw = 360
     bh = 40 + 135 + (row_h * n_rows) + 30 + 60  # top + temp + rows + sep_space + footer
     bx = W - bw - 70
     by = (H - bh) // 2
