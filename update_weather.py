@@ -35,7 +35,7 @@ VISIBLE_FIELDS = ["feels","clouds","weather","rain_chance","humidity","wind","gu
 # Üveglap stílus: "auto", "dark", "light", "custom"
 GLASS_STYLE = "custom"
 # Egyéni szín (HSL) - csak ha GLASS_STYLE = "custom"
-CUSTOM_GLASS_HSL = None  # (hue, saturation, lightness, opacity) pl: (220, 70, 25, 55)
+CUSTOM_GLASS_HSL = None
 # ============================================================
 
 def get_image_name(weather_id, is_night):
@@ -51,14 +51,23 @@ def get_image_name(weather_id, is_night):
     else: return f"cloudy_{suffix}"
 
 def get_weather_hu(weather_id):
-    mapping = {800: "Derült", 801: "Enyhén felhős", 802: "Enyhén felhős",
-               803: "Felhős", 804: "Felhős", 511: "Jégeső"}
+    mapping = {800: "Der\u00fclt", 801: "Enyh\u00e9n felh\u0151s", 802: "Enyh\u00e9n felh\u0151s",
+               803: "Felh\u0151s", 804: "Felh\u0151s", 511: "J\u00e9ges\u0151"}
     if weather_id in mapping: return mapping[weather_id]
-    if weather_id in range(600, 623): return "Havazás"
+    if weather_id in range(600, 623): return "Havaz\u00e1s"
     if weather_id in range(200, 233): return "Zivatar"
-    if weather_id in range(500, 532): return "Eső"
-    if weather_id in range(300, 322): return "Szitálás"
-    return "Változékony"
+    if weather_id in range(500, 532): return "Es\u0151"
+    if weather_id in range(300, 322): return "Szit\u00e1l\u00e1s"
+    return "V\u00e1ltoz\u00e9kony"
+
+def get_forecast_label(weather_id):
+    if weather_id in range(600, 623): return "[ho]"
+    if weather_id in range(200, 233): return "[ziv]"
+    if weather_id in range(500, 532): return "[eso]"
+    if weather_id in range(300, 322): return "[szit]"
+    if weather_id == 800: return "[nap]"
+    if weather_id in [801, 802]: return "[felh]"
+    return "[var]"
 
 def get_rain_chance(weather_id):
     if weather_id in range(200, 233): return 80
@@ -82,9 +91,7 @@ def create_blurred_card(image, box_x, box_y, box_width, box_height, glass_color,
     return Image.alpha_composite(result, border)
 
 def hsl_to_rgba(h, s, l, a):
-    """HSL színkonvertálás RGBA-vé (s és a százalékban)"""
-    s = s / 100
-    l = l / 100
+    s /= 100; l /= 100
     c = (1 - abs(2 * l - 1)) * s
     hp = h / 60
     x = c * (1 - abs((hp % 2) - 1))
@@ -95,43 +102,35 @@ def hsl_to_rgba(h, s, l, a):
     elif hp <= 5: r1, g1, b1 = x, 0, c
     else: r1, g1, b1 = c, 0, x
     m = l - c / 2
-    return (round((r1 + m) * 255), round((g1 + m) * 255), round((b1 + m) * 255), round(a * 2.55))
+    return (round((r1+m)*255), round((g1+m)*255), round((b1+m)*255), round(a*2.55))
 
 def get_glass_color(brightness):
-    """Visszaadja az üveg színét a konfiguráció alapján"""
     if GLASS_STYLE == "custom" and CUSTOM_GLASS_HSL:
-        h, s, l, a = CUSTOM_GLASS_HSL
-        return hsl_to_rgba(h, s, l, a)
-    elif GLASS_STYLE == "dark":
-        return (0, 0, 0, 140)
-    elif GLASS_STYLE == "light":
-        return (255, 255, 255, 140)
-    else:  # auto
-        if brightness > 145:
-            return (255, 255, 255, 140)
-        else:
-            return (0, 0, 0, 110)
+        return hsl_to_rgba(*CUSTOM_GLASS_HSL)
+    elif GLASS_STYLE == "dark": return (0, 0, 0, 140)
+    elif GLASS_STYLE == "light": return (255, 255, 255, 140)
+    else:
+        return (255, 255, 255, 140) if brightness > 145 else (0, 0, 0, 110)
 
 def get_text_colors(brightness):
-    """Visszaadja a szöveg színeit a háttér fényereje alapján"""
     if GLASS_STYLE == "light":
-        return {"main": (0, 0, 0, 230), "dim": (0, 0, 0, 130), "line": (0, 0, 0, 40)}
+        return {"main": (0,0,0,230), "dim": (0,0,0,130), "line": (0,0,0,40)}
     elif GLASS_STYLE == "custom" and CUSTOM_GLASS_HSL and CUSTOM_GLASS_HSL[2] > 40:
-        return {"main": (0, 0, 0, 230), "dim": (0, 0, 0, 130), "line": (0, 0, 0, 40)}
-    else:  # auto vagy dark
+        return {"main": (0,0,0,230), "dim": (0,0,0,130), "line": (0,0,0,40)}
+    else:
         if brightness > 145:
-            return {"main": (0, 0, 0, 230), "dim": (0, 0, 0, 130), "line": (0, 0, 0, 40)}
+            return {"main": (0,0,0,230), "dim": (0,0,0,130), "line": (0,0,0,40)}
         else:
-            return {"main": (255, 255, 255, 255), "dim": (255, 255, 255, 140), "line": (255, 255, 255, 30)}
+            return {"main": (255,255,255,255), "dim": (255,255,255,140), "line": (255,255,255,30)}
 
 def main():
     try:
         resp = requests.get(f"https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric")
         data = resp.json()
-        temp      = round(data["main"]["temp"])
-        feels     = round(data["main"]["feels_like"])
-        humidity  = data["main"]["humidity"]
-        wind      = round(data["wind"]["speed"] * 3.6)
+        temp       = round(data["main"]["temp"])
+        feels      = round(data["main"]["feels_like"])
+        humidity   = data["main"]["humidity"]
+        wind       = round(data["wind"]["speed"] * 3.6)
         weather_id = data["weather"][0]["id"]
         tz_offset  = data.get("timezone", 3600)
         now_dt     = datetime.now(timezone(timedelta(seconds=tz_offset)))
@@ -147,23 +146,24 @@ def main():
     img = Image.open(src).convert("RGB")
     W, H = img.size
 
-    # Dinamikus magasság számítás
     active_fields = [f for f in VISIBLE_FIELDS if f != "temp"]
     row_h = 55
     n_rows = len(active_fields)
-    rows_in_display = (n_rows + COLUMNS - 1) // COLUMNS if COLUMNS > 1 else n_rows
-    
-    forecast_height = 70 + (FORECAST_DAYS * 50) if FORECAST_DAYS > 0 else 0
-    bh = 40 + (FONT_TEMP + 28 if "temp" in VISIBLE_FIELDS else 0) + (rows_in_display * row_h) + forecast_height + 50
+    forecast_height = (20 + FONT_FORECAST + 10 + FORECAST_DAYS * 48) if FORECAST_DAYS > 0 else 0
+    bh = 40 + (FONT_TEMP + 28) + (n_rows * row_h) + forecast_height + 50
     bw = WIDGET_WIDTH
     bx = WIDGET_X
     by = WIDGET_Y
+
+    # Kép határain belül maradjon
+    bx = min(bx, W - bw - 5)
+    by = min(by, H - bh - 5)
 
     region = img.crop((bx, by, bx + bw, by + bh)).convert("L")
     avg_brightness = ImageStat.Stat(region).mean[0]
 
     glass_c = get_glass_color(avg_brightness)
-    colors = get_text_colors(avg_brightness)
+    colors  = get_text_colors(avg_brightness)
 
     card = create_blurred_card(img, bx, by, bw, bh, glass_c, CORNER_RADIUS)
     img = img.convert("RGBA")
@@ -175,90 +175,82 @@ def main():
         if os.path.exists(p): return ImageFont.truetype(p, s)
         return ImageFont.load_default()
 
-    f_t = get_f(FONT_TEMP, True)
-    f_l = get_f(FONT_LABEL)
-    f_v = get_f(FONT_VALUE, True)
-    f_f = get_f(FONT_FOOTER)
+    f_t  = get_f(FONT_TEMP, True)
+    f_l  = get_f(FONT_LABEL)
+    f_v  = get_f(FONT_VALUE, True)
+    f_f  = get_f(FONT_FOOTER)
     f_fc = get_f(FONT_FORECAST)
 
-    m = INNER_MARGIN
+    m  = INNER_MARGIN
     cy = by + 35
 
-    # Hőmérséklet
-    if "temp" in VISIBLE_FIELDS:
-        txt = f"{temp}°C"
-        tw = draw.textbbox((0, 0), txt, font=f_t)[2]
-        draw.text((bx + (bw - tw) // 2, cy), txt, font=f_t, fill=colors["main"])
-        cy += FONT_TEMP + 28
+    # Homerseklet
+    txt = f"{temp}\u00b0C"
+    tw  = draw.textbbox((0, 0), txt, font=f_t)[2]
+    draw.text((bx + (bw - tw) // 2, cy), txt, font=f_t, fill=colors["main"])
+    cy += FONT_TEMP + 28
 
-    # Adatmezők
+    # Adatmezok - minden sor utan vonal
     field_labels = {
-        "feels": "ÉRZET", "weather": "IDŐJÁRÁS", "rain_chance": "CSAPADÉK",
-        "humidity": "PÁRA", "wind": "SZÉL", "pressure": "LÉGNYOMÁS",
-        "uv": "UV", "visibility": "LÁTÓTÁV", "gust": "SZÉLLÖKÉS", "clouds": "FELHŐZET"
+        "feels": "\u00c9RZET", "weather": "ID\u0150J\u00c1R\u00c1S",
+        "rain_chance": "CSAPAD\u00c9K", "humidity": "P\u00c1RA",
+        "wind": "SZ\u00c9L", "pressure": "L\u00c9GNYOM\u00c1S",
+        "uv": "UV", "visibility": "L\u00c1T\u00d3T\u00c1V",
+        "gust": "SZ\u00c9LL\u00d6K\u00c9S", "clouds": "FELH\u0150ZET"
     }
     field_values = {
-        "feels": f"{feels} °C", "weather": weather_hu.upper(), "rain_chance": f"{rain_chance}%",
-        "humidity": f"{humidity}%", "wind": f"{wind} km/h", "pressure": f"{data['main']['pressure']} hPa",
-        "uv": "3", "visibility": f"{data.get('visibility', 10000)//1000} km",
-        "gust": f"{round(data['wind'].get('gust', data['wind']['speed']) * 3.6)} km/h",
-        "clouds": f"{data.get('clouds', {}).get('all', 45)}%"
+        "feels":      f"{feels} \u00b0C",
+        "weather":    weather_hu.upper(),
+        "rain_chance":f"{rain_chance}%",
+        "humidity":   f"{humidity}%",
+        "wind":       f"{wind} km/h",
+        "pressure":   f"{data['main']['pressure']} hPa",
+        "uv":         "3",
+        "visibility": f"{data.get('visibility', 10000)//1000} km",
+        "gust":       f"{round(data['wind'].get('gust', data['wind']['speed']) * 3.6)} km/h",
+        "clouds":     f"{data.get('clouds', {}).get('all', 45)}%"
     }
 
-    col_width = (bw - m * 2) // COLUMNS if COLUMNS == 2 else bw - m * 2
+    for field in active_fields:
+        draw.text((bx + m, cy), field_labels.get(field, field), font=f_l, fill=colors["dim"])
+        val = field_values.get(field, "")
+        vw  = draw.textbbox((0, 0), val, font=f_v)[2]
+        draw.text((bx + bw - m - vw, cy), val, font=f_v, fill=colors["main"])
+        line_y = cy + row_h - 8
+        draw.line([(bx + m, line_y), (bx + bw - m, line_y)], fill=colors["line"], width=1)
+        cy += row_h
 
-    if COLUMNS == 1:
-        for field in active_fields:
-            draw.text((bx + m, cy), field_labels.get(field, field), font=f_l, fill=colors["dim"])
-            val = field_values.get(field, "")
-            vw = draw.textbbox((0, 0), val, font=f_v)[2]
-            draw.text((bx + bw - m - vw, cy), val, font=f_v, fill=colors["main"])
-            cy += row_h
-    else:
-        half = (len(active_fields) + 1) // 2
-        left = active_fields[:half]
-        right = active_fields[half:]
-        for i in range(max(len(left), len(right))):
-            if i < len(left):
-                draw.text((bx + m, cy), field_labels.get(left[i], left[i]), font=f_l, fill=colors["dim"])
-                val = field_values.get(left[i], "")
-                vw = draw.textbbox((0, 0), val, font=f_v)[2]
-                draw.text((bx + m + col_width - 10, cy), val, font=f_v, fill=colors["main"])
-            if i < len(right):
-                x2 = bx + m + col_width + 20
-                draw.text((x2, cy), field_labels.get(right[i], right[i]), font=f_l, fill=colors["dim"])
-                val = field_values.get(right[i], "")
-                vw = draw.textbbox((0, 0), val, font=f_v)[2]
-                draw.text((x2 + col_width - 10, cy), val, font=f_v, fill=colors["main"])
-            cy += row_h
-
-    # Előrejelzés
+    # Eloreljelzes - emoji NELKUL
     if FORECAST_DAYS > 0:
         cy += 10
         draw.line([(bx + m, cy), (bx + bw - m, cy)], fill=colors["line"], width=1)
         cy += 15
-        draw.text((bx + bw // 2, cy), "🔮 ELŐREJELZÉS", font=f_fc, fill=colors["dim"], anchor="mm")
+        elore_txt = "ELOREJELZES"
+        etw = draw.textbbox((0, 0), elore_txt, font=f_fc)[2]
+        draw.text((bx + (bw - etw) // 2, cy), elore_txt, font=f_fc, fill=colors["dim"])
         cy += FONT_FORECAST + 10
-        icons = ["☀️", "⛅", "☁️", "🌧️", "⛈️"]
+
+        forecast_labels = ["HOLNAP", "HOLNAPUTAN", "+3 NAP", "+4 NAP", "+5 NAP"]
         for d in range(1, FORECAST_DAYS + 1):
-            day_name = "HOLNAP" if d == 1 else "HOLNAPUTÁN" if d == 2 else f"+{d} NAP"
-            temp_forecast = temp - d * 2
-            draw.text((bx + m + 10, cy), day_name, font=f_fc, fill=colors["dim"])
-            draw.text((bx + bw - m - 10, cy), f"{temp_forecast}°C", font=f_fc, fill=colors["main"], anchor="ra")
-            draw.text((bx + bw // 2, cy), icons[(d - 1) % 5], font=f_fc, fill=colors["dim"], anchor="mm")
-            cy += 42
+            day_name     = forecast_labels[d - 1] if d <= len(forecast_labels) else f"+{d} NAP"
+            temp_fc      = temp - d * 2
+            draw.text((bx + m, cy), day_name, font=f_fc, fill=colors["dim"])
+            fc_val       = f"{temp_fc}\u00b0C"
+            fvw          = draw.textbbox((0, 0), fc_val, font=f_fc)[2]
+            draw.text((bx + bw - m - fvw, cy), fc_val, font=f_fc, fill=colors["main"])
+            cy += 48
 
     # Footer
-    cy += 15
+    cy += 10
     now_str = now_dt.strftime("%Y.%m.%d.  %H:%M")
-    ftxt = f"{CITY.upper()}  •  {now_str}"
-    fw = draw.textbbox((0, 0), ftxt, font=f_f)[2]
+    ftxt = f"{CITY.upper()}  \u2022  {now_str}"
+    fw   = draw.textbbox((0, 0), ftxt, font=f_f)[2]
     draw.text((bx + (bw - fw) // 2, cy), ftxt, font=f_f, fill=colors["dim"])
 
     img.convert("RGB").save(dst, "JPEG", quality=95)
-    print(f"current.jpg mentve")
+    print("current.jpg mentve")
 
-    image_url = f"{BASE_URL}/current.jpg"
+    image_url    = f"{BASE_URL}/current.jpg"
     weather_json = [{"location": CITY, "title": f"{weather_hu} {temp}C",
                      "author": "OpenWeatherMap", "url_img": image_url}]
     with open("weather.json", "w", encoding="utf-8") as f:
