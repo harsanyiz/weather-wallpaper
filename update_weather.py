@@ -15,10 +15,10 @@ BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRAN
 # HORIZONTÁLIS DESIGN KONFIGURÁCIÓ
 # ============================================================
 CITY = "Budapest"
-WIDGET_WIDTH = 1600   # Megnövelve, hogy az előrejelzés is beférjen
+WIDGET_WIDTH = 950    # Lecsökkentve, hogy ne takarja ki a WiFi/Óra részt
 WIDGET_HEIGHT = 100
 WIDGET_Y = 50
-OFFSET_LEFT = 50      # A widget távolsága a bal széltől
+OFFSET_LEFT = 50      # Távolság a bal széltől
 CORNER_RADIUS = 50
 INNER_MARGIN = 40
 
@@ -77,11 +77,11 @@ def create_blurred_card(image, box_x, box_y, box_width, box_height, glass_color,
 
 def main():
     try:
-        # Aktuális időjárás
+        # Aktuális adatok
         resp = requests.get(f"https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric")
         data = resp.json()
         
-        # 3 napos előrejelzés lekérése
+        # Előrejelzés adatok
         f_resp = requests.get(f"https://api.openweathermap.org/data/2.5/forecast?q={CITY}&appid={API_KEY}&units=metric")
         f_data = f_resp.json()
 
@@ -93,7 +93,7 @@ def main():
         image_name = get_image_name(weather_id, is_night)
         weather_hu = get_weather_hu(weather_id)
 
-        # Előrejelzés feldolgozása (következő 3 nap délutáni adatai)
+        # Következő 3 nap szűrése (délutáni hőmérséklet)
         forecast_list = []
         seen_days = set()
         today = now_dt.date()
@@ -140,7 +140,7 @@ def main():
     draw.line([(curr_x, by+25), (curr_x, by+bh-25)], fill=colors["line"], width=2)
     curr_x += 40
 
-    # 2. Adatok
+    # 2. Részletes adatok (Érzet, Szél, Pára)
     fields = [
         ("Érzet", f"{round(data['main']['feels_like'])}°C"),
         ("Szél", f"{round(data['wind']['speed']*3.6)} km/h"),
@@ -152,8 +152,7 @@ def main():
         draw.text((curr_x, mid_y), val, font=f_v, fill=colors["main"])
         curr_x += max(draw.textbbox((0,0), label.upper(), font=f_l)[2], draw.textbbox((0,0), val, font=f_v)[2]) + 50
 
-    # 3. ÚJ: Előrejelzés rész
-    # Újabb elválasztó vonal az adatok után
+    # 3. 3 napos előrejelzés szekció
     draw.line([(curr_x, by+25), (curr_x, by+bh-25)], fill=colors["line"], width=2)
     curr_x += 40
 
@@ -164,12 +163,11 @@ def main():
         
         draw.text((curr_x, mid_y - 20), day_name.upper(), font=f_l, fill=colors["dim"])
         draw.text((curr_x, mid_y), f_temp, font=f_v, fill=colors["main"])
-        curr_x += 100 # Távolság a napok között
+        curr_x += 80 
 
-    # 4. Frissítési idő (jobb szélre igazítva)
+    # 4. Frissítési idő - Az adatok mellé igazítva, hogy ne lógjon ki jobbra
     update_txt = f"FRISSÍTVE: {update_time}"
-    u_w = draw.textbbox((0,0), update_txt, font=f_u)[2]
-    draw.text((bx + bw - u_w - INNER_MARGIN, mid_y - 8), update_txt, font=f_u, fill=colors["dim"])
+    draw.text((curr_x + 10, mid_y - 8), update_txt, font=f_u, fill=colors["dim"])
 
     img.convert("RGB").save(dst, "JPEG", quality=95)
     
