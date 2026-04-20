@@ -1,7 +1,8 @@
 [
   {
     "location": "Budapest",
-    "title": "Felhős • 7°C",
+    "title": "Felhős 9C",
+    "author": "OpenWeatherMap",
     "url_img": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg"
   }
 ]
