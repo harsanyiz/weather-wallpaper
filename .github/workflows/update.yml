@@ -2,16 +2,20 @@ name: Weather Wallpaper Update
 
 on:
   schedule:
-    - cron: '0 * * * *'
-  workflow_dispatch:
+    - cron: '0 * * * *'  # Minden óra elején fut
+  workflow_dispatch:      # Manuálisan is indítható
 
 jobs:
   update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write    # Engedély a fájlok módosításához
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # A teljes előzményt lehúzza a biztonságos push érdekében
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -21,6 +25,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install requests Pillow
+          sudo apt-get update
           sudo apt-get install -y fonts-noto fonts-noto-core fonts-noto-color-emoji
 
       - name: Run weather update
@@ -32,6 +37,16 @@ jobs:
         run: |
           git config user.name "weather-bot"
           git config user.email "bot@weather"
+          
+          # Hozzáadjuk a változásokat
           git add images/current.jpg weather.json
-          git diff --cached --quiet || git commit -m "🌤 Időjárás frissítés $(date '+%Y-%m-%d %H:%M')"
-          git push
+          
+          # Az --allow-empty miatt akkor is lesz commit, ha a kép nem változott.
+          # Így a JSON fájlban lévő időbélyeg (?v=...) frissülése mindig kikerül a repóba.
+          git commit -m "🌤 Időjárás frissítés $(date '+%Y-%m-%d %H:%M')" --allow-empty
+          
+          # Pull rebase, hogy ne kapjunk "rejected" hibát, ha kézzel szerkesztettél bele
+          git pull --rebase origin main
+          
+          # Feltolás
+          git push origin main
