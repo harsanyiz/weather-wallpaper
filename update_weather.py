@@ -15,10 +15,10 @@ BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRAN
 # HORIZONTÁLIS DESIGN KONFIGURÁCIÓ
 # ============================================================
 CITY = "Budapest"
-WIDGET_WIDTH = 950    # Lecsökkentve, hogy ne takarja ki a WiFi/Óra részt
+WIDGET_WIDTH = 1100   # Kicsit növelve az eső % miatt
 WIDGET_HEIGHT = 100
 WIDGET_Y = 50
-OFFSET_LEFT = 50      # Távolság a bal széltől
+OFFSET_LEFT = 50      
 CORNER_RADIUS = 50
 INNER_MARGIN = 40
 
@@ -77,11 +77,9 @@ def create_blurred_card(image, box_x, box_y, box_width, box_height, glass_color,
 
 def main():
     try:
-        # Aktuális adatok
         resp = requests.get(f"https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric")
         data = resp.json()
         
-        # Előrejelzés adatok
         f_resp = requests.get(f"https://api.openweathermap.org/data/2.5/forecast?q={CITY}&appid={API_KEY}&units=metric")
         f_data = f_resp.json()
 
@@ -93,7 +91,9 @@ def main():
         image_name = get_image_name(weather_id, is_night)
         weather_hu = get_weather_hu(weather_id)
 
-        # Következő 3 nap szűrése (délutáni hőmérséklet)
+        # Eső valószínűsége a következő 3 órára
+        rain_chance = f"{round(f_data['list'][0].get('pop', 0) * 100)}%"
+
         forecast_list = []
         seen_days = set()
         today = now_dt.date()
@@ -131,31 +131,16 @@ def main():
     curr_x = bx + INNER_MARGIN
     mid_y = by + (bh // 2)
 
-    # 1. Hőmérséklet
+    # 1. Aktuális Hőmérséklet
     temp_txt = f"{temp}°C"
     draw.text((curr_x, mid_y - 25), temp_txt, font=f_t, fill=colors["main"])
     curr_x += draw.textbbox((0,0), temp_txt, font=f_t)[2] + 40
 
-    # Vonal
+    # Első elválasztó vonal
     draw.line([(curr_x, by+25), (curr_x, by+bh-25)], fill=colors["line"], width=2)
     curr_x += 40
 
-    # 2. Részletes adatok (Érzet, Szél, Pára)
-    fields = [
-        ("Érzet", f"{round(data['main']['feels_like'])}°C"),
-        ("Szél", f"{round(data['wind']['speed']*3.6)} km/h"),
-        ("Pára", f"{data['main']['humidity']}%")
-    ]
-
-    for label, val in fields:
-        draw.text((curr_x, mid_y - 20), label.upper(), font=f_l, fill=colors["dim"])
-        draw.text((curr_x, mid_y), val, font=f_v, fill=colors["main"])
-        curr_x += max(draw.textbbox((0,0), label.upper(), font=f_l)[2], draw.textbbox((0,0), val, font=f_v)[2]) + 50
-
-    # 3. 3 napos előrejelzés szekció
-    draw.line([(curr_x, by+25), (curr_x, by+bh-25)], fill=colors["line"], width=2)
-    curr_x += 40
-
+    # 2. ELŐREJELZÉS (Most ez jön előre)
     for day in forecast_list:
         dt_obj = datetime.fromtimestamp(day['dt'])
         day_name = get_day_hu(dt_obj)
@@ -165,7 +150,23 @@ def main():
         draw.text((curr_x, mid_y), f_temp, font=f_v, fill=colors["main"])
         curr_x += 80 
 
-    # 4. Frissítési idő - Az adatok mellé igazítva, hogy ne lógjon ki jobbra
+    # Második elválasztó vonal
+    draw.line([(curr_x, by+25), (curr_x, by+bh-25)], fill=colors["line"], width=2)
+    curr_x += 40
+
+    # 3. RÉSZLETEK (Érzet, Szél, Eső)
+    fields = [
+        ("Érzet", f"{round(data['main']['feels_like'])}°C"),
+        ("Szél", f"{round(data['wind']['speed']*3.6)} km/h"),
+        ("Eső %", rain_chance)
+    ]
+
+    for label, val in fields:
+        draw.text((curr_x, mid_y - 20), label.upper(), font=f_l, fill=colors["dim"])
+        draw.text((curr_x, mid_y), val, font=f_v, fill=colors["main"])
+        curr_x += max(draw.textbbox((0,0), label.upper(), font=f_l)[2], draw.textbbox((0,0), val, font=f_v)[2]) + 50
+
+    # 4. Frissítési idő
     update_txt = f"FRISSÍTVE: {update_time}"
     draw.text((curr_x + 10, mid_y - 8), update_txt, font=f_u, fill=colors["dim"])
 
