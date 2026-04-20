@@ -26,7 +26,7 @@ FONT_TEMP = 42
 FONT_LABEL = 14
 FONT_VALUE = 18
 FONT_UPDATE = 12
-FONT_TODAY = 11      # A mai nap nevének mérete
+FONT_TODAY = 11      # Mai nap neve (kicsi, elegáns)
 # ============================================================
 
 def find_font(bold=False):
@@ -95,9 +95,7 @@ def main():
         image_name = get_image_name(weather_id, is_night)
         weather_hu = get_weather_hu(weather_id)
         
-        # Mai nap teljes neve
-        today_name = get_day_hu(now_dt, full=True)
-
+        today_full = get_day_hu(now_dt, full=True)
         rain_chance = f"{round(f_data['list'][0].get('pop', 0) * 100)}%"
 
         forecast_list = []
@@ -138,17 +136,16 @@ def main():
     curr_x = bx + INNER_MARGIN
     mid_y = by + (bh // 2)
 
-    # 1. Mai nap neve + Aktuális Hőmérséklet
-    draw.text((curr_x, mid_y - 38), today_name, font=f_day, fill=colors["dim"]) # Nap neve fent
+    # 1. NAP NEVE + HŐMÉRSÉKLET
+    draw.text((curr_x, mid_y - 38), today_full, font=f_day, fill=colors["dim"])
     temp_txt = f"{temp}°C"
     draw.text((curr_x, mid_y - 25), temp_txt, font=f_t, fill=colors["main"])
     curr_x += draw.textbbox((0,0), temp_txt, font=f_t)[2] + 40
 
-    # Első elválasztó vonal
     draw.line([(curr_x, by+25), (curr_x, by+bh-25)], fill=colors["line"], width=2)
     curr_x += 40
 
-    # 2. ELŐREJELZÉS
+    # 2. 3 NAPOS ELŐREJELZÉS
     for day in forecast_list:
         dt_obj = datetime.fromtimestamp(day['dt'])
         day_name = get_day_hu(dt_obj)
@@ -158,11 +155,10 @@ def main():
         draw.text((curr_x, mid_y), f_temp, font=f_v, fill=colors["main"])
         curr_x += 80 
 
-    # Második elválasztó vonal
     draw.line([(curr_x, by+25), (curr_x, by+bh-25)], fill=colors["line"], width=2)
     curr_x += 40
 
-    # 3. RÉSZLETEK
+    # 3. RÉSZLETEK (Érzet, Szél, Eső)
     fields = [
         ("Érzet", f"{round(data['main']['feels_like'])}°C"),
         ("Szél", f"{round(data['wind']['speed']*3.6)} km/h"),
@@ -174,23 +170,16 @@ def main():
         draw.text((curr_x, mid_y), val, font=f_v, fill=colors["main"])
         curr_x += max(draw.textbbox((0,0), label.upper(), font=f_l)[2], draw.textbbox((0,0), val, font=f_v)[2]) + 50
 
-    # 4. Frissítési idő
+    # 4. FRISSÍTÉS
     update_txt = f"FRISSÍTVE: {update_time}"
     draw.text((curr_x + 10, mid_y - 8), update_txt, font=f_u, fill=colors["dim"])
 
     img.convert("RGB").save(dst, "JPEG", quality=95)
     
+    # JSON mentés a végén
     v_param = int(time.time())
     image_url = f"{BASE_URL}/current.jpg?v={v_param}"
-    
-    weather_json = [{
-        "location": CITY, 
-        "title": f"{weather_hu} {temp}C",
-        "author": "Gemini Design", 
-        "image_url": image_url,
-        "url_img": image_url
-    }]
-    
+    weather_json = [{"location": CITY, "title": f"{weather_hu} {temp}C", "author": "Gemini Design", "image_url": image_url, "url_img": image_url}]
     with open("weather.json", "w", encoding="utf-8") as f:
         json.dump(weather_json, f, ensure_ascii=False, indent=2)
 
