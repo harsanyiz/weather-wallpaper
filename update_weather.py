@@ -19,7 +19,7 @@ CITY = "Budapest"
 WIDGET_WIDTH = 2200   # Arányos szélesség 4K-n
 WIDGET_HEIGHT = 200   # Dupla magasság a korábbihoz képest
 WIDGET_Y = 100        # Pozíció fentről
-OFFSET_LEFT = 100     # Pozíció balról
+OFFSET_LEFT = 135     # Pozíció balról
 CORNER_RADIUS = 100   # Kerekítés mértéke
 INNER_MARGIN = 80     # Belső margó a kártyán belül
 
