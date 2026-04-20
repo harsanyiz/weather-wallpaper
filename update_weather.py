@@ -14,29 +14,29 @@ BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRAN
 # KONFIGURÁCIÓ - EZT A RÉSZT FRISSÍTI A DESIGNER
 # ============================================================
 CITY = "Budapest"
-WIDGET_WIDTH = 340
-WIDGET_X = 1515
-WIDGET_Y = 310
-CORNER_RADIUS = 28
-INNER_MARGIN = 36
+WIDGET_WIDTH = 325
+WIDGET_X = 1560
+WIDGET_Y = 205
+CORNER_RADIUS = 26
+INNER_MARGIN = 34
 COLUMNS = 1
 FORECAST_DAYS = 3
 
 # Betűméretek
-FONT_TEMP = 81
-FONT_LABEL = 18
-FONT_VALUE = 20
+FONT_TEMP = 77
+FONT_LABEL = 17
+FONT_VALUE = 19
 FONT_FOOTER = 14
-FONT_FORECAST = 17
+FONT_FORECAST = 14
 
 # Megjelenítendő adatok (sorrendben!)
-VISIBLE_FIELDS = ["feels","weather","rain_chance","humidity","wind"]
+VISIBLE_FIELDS = ["feels","clouds","weather","rain_chance","humidity","wind","gust"]
 
 # Üveglap stílus: "auto", "dark", "light", "custom"
-GLASS_STYLE = "custom"
+GLASS_STYLE = "auto"
 # Egyéni szín (HSL) - csak ha GLASS_STYLE = "custom"
 # Példa: CUSTOM_GLASS_HSL = (220, 70, 25, 55)  -> sötétkék, 55% átlátszóság
-CUSTOM_GLASS_HSL = (220, 70, 25, 55)
+CUSTOM_GLASS_HSL = None
 # ============================================================
 
 # Font keresési sorrend - Noto elsőként, DejaVu fallback
@@ -138,9 +138,11 @@ def create_blurred_card(image, box_x, box_y, box_width, box_height, glass_color,
     blurred = blurred.convert("RGBA")
     blurred.putalpha(mask)
     result = Image.alpha_composite(blurred, glass)
+    # Border maszkkal levagva hogy ne lucsogjunk ki a sarkokon
     border_color = (255, 255, 255, 50) if glass_color[0] < 128 else (0, 0, 0, 30)
     border = Image.new("RGBA", (box_width, box_height), (0, 0, 0, 0))
-    ImageDraw.Draw(border).rounded_rectangle((0, 0, box_width, box_height), radius=radius, outline=border_color, width=1)
+    ImageDraw.Draw(border).rounded_rectangle((1, 1, box_width-1, box_height-1), radius=radius, outline=border_color, width=1)
+    border.putalpha(mask)
     return Image.alpha_composite(result, border)
 
 def main():
@@ -179,6 +181,9 @@ def main():
     glass_c        = get_glass_color(avg_brightness)
     colors         = get_text_colors(avg_brightness)
 
+    # Biztosan a kepen belul marad a blur crop
+    bx = max(0, min(bx, W - bw))
+    by = max(0, min(by, H - bh))
     card = create_blurred_card(img, bx, by, bw, bh, glass_c, CORNER_RADIUS)
     img  = img.convert("RGBA")
     img.paste(card, (bx, by), card)
