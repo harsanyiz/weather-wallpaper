@@ -1,8 +1,7 @@
 [
   {
     "location": "Budapest",
-    "title": "Derült 10C",
-    "author": "OpenWeatherMap",
-    "url_img": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg"
+    "title": "☀ 10C",
+    "image_url": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776719092"
   }
 ]
