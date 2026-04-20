@@ -1,9 +1,6 @@
-[
-  {
-    "location": "Budapest",
-    "title": "Borult 15C",
-    "author": "Gemini Design",
-    "image_url": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776695357",
-    "url_img": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776695357"
-  }
-]
+{
+  "location": "Budapest",
+  "title": "Felhős 15C",
+  "author": "OpenWeatherMap",
+  "image_url": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776695482"
+}
