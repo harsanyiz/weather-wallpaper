@@ -2,10 +2,10 @@ import requests
 import json
 import os
 import time
+import math
 from datetime import datetime, timezone, timedelta
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageStat
 
-# Konfiguráció és API kulcsok
 API_KEY = os.environ.get("OWM_API_KEY")
 GITHUB_USER = "harsanyiz"
 GITHUB_REPO = "weather-wallpaper"
@@ -13,21 +13,21 @@ BRANCH = "main"
 BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images"
 
 # ============================================================
-# 4K-S HORIZONTÁLIS DESIGN KONFIGURÁCIÓ
+# KONFIGURÁCIÓ
 # ============================================================
 CITY = "Budapest"
-WIDGET_WIDTH = 2200   
-WIDGET_HEIGHT = 200   
-WIDGET_Y = 100        
-OFFSET_LEFT = 135     # A Media ikon feletti fehér jelölőhöz igazítva
-INNER_MARGIN = 80     
+WIDGET_WIDTH = 2200
+WIDGET_HEIGHT = 220
+WIDGET_Y = 80
+OFFSET_LEFT = 135
+INNER_MARGIN = 80
 
-# 4K-s betűméretek
-FONT_TEMP = 90        # Fő hőmérséklet
-FONT_DESC = 32        # Időjárás megnevezése (pl. DERÜLT)
-FONT_LABEL = 28       # Címkék és a Nap neve (pl. ÉRZET, HÉTFŐ)
-FONT_VALUE = 36       # Értékek (pl. 10 km/h)
-FONT_UPDATE = 24      # Frissítve felirat
+FONT_TEMP   = 90
+FONT_DESC   = 32
+FONT_LABEL  = 28
+FONT_VALUE  = 36
+FONT_UPDATE = 24
+FONT_SUN    = 22
 # ============================================================
 
 def find_font(bold=False):
@@ -52,40 +52,73 @@ def get_image_name(weather_id, is_night):
     else: return f"cloudy_{suffix}"
 
 def get_weather_hu(weather_id):
-    mapping = {800: "Derült", 801: "Pár felhő", 802: "Részben felhős", 803: "Felhős", 804: "Borult", 511: "Ónos eső"}
-    return mapping.get(weather_id, "Változékony")
+    mapping = {800: "Der\u00fclt", 801: "P\u00e1r felh\u0151", 802: "R\u00e9szben felh\u0151s",
+               803: "Felh\u0151s", 804: "Borult", 511: "\u00d3nos es\u0151"}
+    return mapping.get(weather_id, "V\u00e1ltoz\u00e9kony")
+
+def get_forecast_hu(weather_id):
+    if weather_id == 800: return "Napos"
+    elif weather_id in [801, 802]: return "Felh\u0151s"
+    elif weather_id in [803, 804]: return "Borult"
+    elif weather_id in range(500, 532): return "Es\u0151s"
+    elif weather_id in range(300, 322): return "Szit\u00e1l"
+    elif weather_id in range(600, 623): return "Havas"
+    elif weather_id in range(200, 233): return "Zivatar"
+    return "V\u00e1ltoz\u00e9k"
 
 def get_day_hu(date_obj):
-    napok = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat", "Vasárnap"]
+    napok = ["H\u00e9tf\u0151", "Kedd", "Szerda", "Cs\u00fct\u00f6rt\u00f6k", "P\u00e9ntek", "Szombat", "Vas\u00e1rnap"]
     return napok[date_obj.weekday()]
 
 def get_text_colors(brightness):
-    # Fixen világos színeket adunk a sötét háttérhez, vagy dinamikusan váltunk
     if brightness > 145:
-        return {"main": (0,0,0,230), "dim": (0,0,0,140), "line": (0,0,0,40)}
-    return {"main": (255,255,255,255), "dim": (255,255,255,160), "line": (255,255,255,40)}
+        return {"main": (0,0,0,230), "dim": (0,0,0,140), "line": (0,0,0,60), "blur": (0,0,0,80)}
+    return {"main": (255,255,255,255), "dim": (255,255,255,160), "line": (255,255,255,50), "blur": (0,0,0,120)}
+
+def draw_glass_bar(img, bx, by, bw, bh):
+    """Felatszso blur sav a widget mogott"""
+    # Crop + blur
+    region = img.crop((bx, by, bx + bw, by + bh))
+    blurred = region.filter(ImageFilter.GaussianBlur(30))
+    # Seteletes maszk
+    mask = Image.new("L", (bw, bh), 0)
+    mask_draw = ImageDraw.Draw(mask)
+    mask_draw.rounded_rectangle((0, 0, bw, bh), radius=30, fill=180)
+    # Dark overlay
+    overlay = Image.new("RGBA", (bw, bh), (0, 0, 10, 100))
+    blurred = blurred.convert("RGBA")
+    blurred.putalpha(mask)
+    result = Image.alpha_composite(blurred, overlay)
+    img.paste(result, (bx, by), result)
+    return img
+
+def format_sun_time(ts, tz_offset):
+    dt = datetime.fromtimestamp(ts, tz=timezone(timedelta(seconds=tz_offset)))
+    return dt.strftime("%H:%M")
 
 def main():
     try:
-        # Aktuális és előrejelzési adatok lekérése
-        resp = requests.get(f"https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric")
-        data = resp.json()
-        f_resp = requests.get(f"https://api.openweathermap.org/data/2.5/forecast?q={CITY}&appid={API_KEY}&units=metric")
-        f_data = f_resp.json()
+        resp   = requests.get(f"https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric").json()
+        f_resp = requests.get(f"https://api.openweathermap.org/data/2.5/forecast?q={CITY}&appid={API_KEY}&units=metric").json()
 
-        temp, weather_id = round(data["main"]["temp"]), data["weather"][0]["id"]
-        tz_offset = data.get("timezone", 3600)
-        now_dt = datetime.now(timezone(timedelta(seconds=tz_offset)))
+        temp       = round(resp["main"]["temp"])
+        feels      = round(resp["main"]["feels_like"])
+        humidity   = resp["main"]["humidity"]
+        wind       = round(resp["wind"]["speed"] * 3.6)
+        weather_id = resp["weather"][0]["id"]
+        tz_offset  = resp.get("timezone", 3600)
+        now_dt     = datetime.now(timezone(timedelta(seconds=tz_offset)))
         update_time = now_dt.strftime("%H:%M")
-        is_night = now_dt.timestamp() < data["sys"]["sunrise"] or now_dt.timestamp() > data["sys"]["sunset"]
+        is_night   = now_dt.timestamp() < resp["sys"]["sunrise"] or now_dt.timestamp() > resp["sys"]["sunset"]
         image_name = get_image_name(weather_id, is_night)
         weather_hu = get_weather_hu(weather_id)
+        sunrise_str = format_sun_time(resp["sys"]["sunrise"], tz_offset)
+        sunset_str  = format_sun_time(resp["sys"]["sunset"],  tz_offset)
 
-        # Következő 3 nap délutáni adatai
         forecast_list = []
         seen_days = set()
         today = now_dt.date()
-        for entry in f_data['list']:
+        for entry in f_resp['list']:
             dt_obj = datetime.fromtimestamp(entry['dt'], tz=timezone(timedelta(seconds=tz_offset)))
             if dt_obj.date() > today and dt_obj.date() not in seen_days and dt_obj.hour >= 12:
                 forecast_list.append(entry)
@@ -94,81 +127,126 @@ def main():
     except Exception as e:
         print(f"Hiba: {e}"); return
 
-    # Háttérkép betöltése és 4K-ra méretezése
     src, dst = f"images/{image_name}.jpg", "images/current.jpg"
     img = Image.open(src).convert("RGB")
     if img.size != (3840, 2160):
         img = img.resize((3840, 2160), Image.Resampling.LANCZOS)
-    
+
     W, H = img.size
-    bx, by, bw, bh = OFFSET_LEFT, WIDGET_Y, WIDGET_WIDTH, WIDGET_HEIGHT
-    
-    # Színmeghatározás a háttér alapján
+    bx = OFFSET_LEFT
+    by = WIDGET_Y
+    bw = WIDGET_WIDTH
+    bh = WIDGET_HEIGHT
+
+    # Uveg sav
+    img = img.convert("RGBA")
+    img = draw_glass_bar(img, bx, by, bw, bh)
+
     region = img.crop((bx, by, bx + bw, by + bh)).convert("L")
     avg_brightness = ImageStat.Stat(region).mean[0]
     colors = get_text_colors(avg_brightness)
 
-    img = img.convert("RGBA")
     draw = ImageDraw.Draw(img)
 
-    # Betűtípusok betöltése
-    f_t, f_d, f_l, f_v, f_u = get_f(FONT_TEMP, True), get_f(FONT_DESC), get_f(FONT_LABEL), get_f(FONT_VALUE, True), get_f(FONT_UPDATE)
+    f_t  = get_f(FONT_TEMP,   True)
+    f_d  = get_f(FONT_DESC)
+    f_l  = get_f(FONT_LABEL)
+    f_v  = get_f(FONT_VALUE,  True)
+    f_u  = get_f(FONT_UPDATE)
+    f_s  = get_f(FONT_SUN)
 
     curr_x = int(bx + INNER_MARGIN)
-    mid_y = int(by + (bh // 2))
+    mid_y  = int(by + bh // 2)
 
-    # --- 1. SZEKCIÓ: NAP + HŐFOK + LEÍRÁS (TÖKÉLETESEN KÖZÉPRE IGAZÍTVA) ---
-    day_txt = get_day_hu(now_dt).upper()
-    temp_txt = f"{temp}°C"
+    # --- 1. SZEKCIO: NAP + HOMERSEKLET + LEIRAS ---
+    day_txt  = get_day_hu(now_dt).upper()
+    temp_txt = f"{temp}\u00b0C"
     desc_txt = weather_hu.upper()
 
-    day_w = draw.textbbox((0, 0), day_txt, font=f_l)[2]
-    temp_w = draw.textbbox((0, 0), temp_txt, font=f_t)[2]
-    desc_w = draw.textbbox((0, 0), desc_txt, font=f_d)[2]
-    max_w = max(day_w, temp_w, desc_w)
+    day_w  = draw.textbbox((0,0), day_txt,  font=f_l)[2]
+    temp_w = draw.textbbox((0,0), temp_txt, font=f_t)[2]
+    desc_w = draw.textbbox((0,0), desc_txt, font=f_d)[2]
+    max_w  = max(day_w, temp_w, desc_w)
 
-    draw.text((int(curr_x + (max_w - day_w) / 2), int(mid_y - 85)), day_txt, font=f_l, fill=colors["dim"])
-    draw.text((int(curr_x + (max_w - temp_w) / 2), int(mid_y - 60)), temp_txt, font=f_t, fill=colors["main"])
-    draw.text((int(curr_x + (max_w - desc_w) / 2), int(mid_y + 35)), desc_txt, font=f_d, fill=colors["dim"])
-    
+    draw.text((int(curr_x + (max_w - day_w)  / 2), int(mid_y - 90)), day_txt,  font=f_l, fill=colors["dim"])
+    draw.text((int(curr_x + (max_w - temp_w) / 2), int(mid_y - 62)), temp_txt, font=f_t, fill=colors["main"])
+    draw.text((int(curr_x + (max_w - desc_w) / 2), int(mid_y + 38)), desc_txt, font=f_d, fill=colors["dim"])
+
     curr_x += int(max_w + 70)
-    draw.line([(curr_x, by+40), (curr_x, by+bh-40)], fill=colors["line"], width=3)
-    curr_x += 60
 
-    # --- 2. SZEKCIÓ: ADATOK (ÉRZET, SZÉL, PÁRA) ---
+    # Elegans elvalaszto – dupla vonal
+    lc = colors["line"]
+    draw.line([(curr_x,   by+35), (curr_x,   by+bh-35)], fill=lc, width=1)
+    draw.line([(curr_x+4, by+35), (curr_x+4, by+bh-35)], fill=lc, width=1)
+    curr_x += 40
+
+    # --- 2. SZEKCIO: ADATOK ---
     fields = [
-        ("Érzet", f"{round(data['main']['feels_like'])}°C"),
-        ("Szél", f"{round(data['wind']['speed']*3.6)} km/h"),
-        ("Pára", f"{data['main']['humidity']}%")
+        ("\u00c9rzet", f"{feels}\u00b0C"),
+        ("Sz\u00e9l",  f"{wind} km/h"),
+        ("P\u00e1ra",  f"{humidity}%"),
     ]
     for label, val in fields:
-        draw.text((curr_x, mid_y - 45), label.upper(), font=f_l, fill=colors["dim"])
-        draw.text((curr_x, mid_y), val, font=f_v, fill=colors["main"])
-        curr_x += max(draw.textbbox((0,0), label.upper(), font=f_l)[2], draw.textbbox((0,0), val, font=f_v)[2]) + 80
+        lw = draw.textbbox((0,0), label.upper(), font=f_l)[2]
+        vw = draw.textbbox((0,0), val,            font=f_v)[2]
+        draw.text((curr_x, int(mid_y - 48)), label.upper(), font=f_l, fill=colors["dim"])
+        draw.text((curr_x, int(mid_y + 2)),  val,           font=f_v, fill=colors["main"])
+        curr_x += max(lw, vw) + 70
 
-    # --- 3. SZEKCIÓ: 3 NAPOS ELŐREJELZÉS ---
-    draw.line([(curr_x, by+40), (curr_x, by+bh-40)], fill=colors["line"], width=3)
-    curr_x += 60
+    # Dupla elvalaszto
+    draw.line([(curr_x,   by+35), (curr_x,   by+bh-35)], fill=lc, width=1)
+    draw.line([(curr_x+4, by+35), (curr_x+4, by+bh-35)], fill=lc, width=1)
+    curr_x += 40
+
+    # --- 3. SZEKCIO: NAPKELTE / NAPNYUGTA ---
+    sun_label = "NAPKELTE / NAPNYUGTA"
+    sun_val   = f"{sunrise_str}  \u2022  {sunset_str}"
+    slw = draw.textbbox((0,0), sun_label, font=f_s)[2]
+    svw = draw.textbbox((0,0), sun_val,   font=f_v)[2]
+    col_w = max(slw, svw)
+    draw.text((int(curr_x + (col_w-slw)/2), int(mid_y - 48)), sun_label, font=f_s, fill=colors["dim"])
+    draw.text((int(curr_x + (col_w-svw)/2), int(mid_y + 2)),  sun_val,   font=f_v, fill=colors["main"])
+    curr_x += col_w + 70
+
+    # Dupla elvalaszto
+    draw.line([(curr_x,   by+35), (curr_x,   by+bh-35)], fill=lc, width=1)
+    draw.line([(curr_x+4, by+35), (curr_x+4, by+bh-35)], fill=lc, width=1)
+    curr_x += 40
+
+    # --- 4. SZEKCIO: 3 NAPOS ELORELJELZES ---
     for day in forecast_list:
-        d_name = get_day_hu(datetime.fromtimestamp(day['dt'])).upper()[:3]
-        f_val = f"{round(day['main']['temp'])}°C"
-        draw.text((curr_x, mid_y - 45), d_name, font=f_l, fill=colors["dim"])
-        draw.text((curr_x, mid_y), f_val, font=f_v, fill=colors["main"])
-        curr_x += 140 
+        dt_obj  = datetime.fromtimestamp(day['dt'], tz=timezone(timedelta(seconds=tz_offset)))
+        d_name  = get_day_hu(dt_obj).upper()[:3]
+        f_wid   = day['weather'][0]['id']
+        f_val   = f"{round(day['main']['temp'])}\u00b0C"
+        f_desc  = get_forecast_hu(f_wid).upper()
 
-    # --- 4. SZEKCIÓ: FRISSÍTÉS ---
-    update_txt = f"FRISSÍTVE: {update_time}"
-    draw.text((curr_x + 20, mid_y - 12), update_txt, font=f_u, fill=colors["dim"])
+        nw = draw.textbbox((0,0), d_name, font=f_l)[2]
+        vw = draw.textbbox((0,0), f_val,  font=f_v)[2]
+        dw = draw.textbbox((0,0), f_desc, font=f_s)[2]
+        col_w = max(nw, vw, dw)
 
-    # Mentés 4K-s élességgel
+        draw.text((int(curr_x + (col_w-nw)/2), int(mid_y - 90)), d_name, font=f_l, fill=colors["dim"])
+        draw.text((int(curr_x + (col_w-vw)/2), int(mid_y - 55)), f_val,  font=f_v, fill=colors["main"])
+        draw.text((int(curr_x + (col_w-dw)/2), int(mid_y - 10)), f_desc, font=f_s, fill=colors["dim"])
+        curr_x += col_w + 55
+
+    # --- 5. FRISSÍTÉS ---
+    draw.line([(curr_x,   by+35), (curr_x,   by+bh-35)], fill=lc, width=1)
+    draw.line([(curr_x+4, by+35), (curr_x+4, by+bh-35)], fill=lc, width=1)
+    curr_x += 30
+    update_txt = f"FRISS\u00cdTVE\n{update_time}"
+    draw.text((curr_x + 20, int(mid_y - 30)), update_txt, font=f_u, fill=colors["dim"])
+
     img.convert("RGB").save(dst, "JPEG", quality=100, subsampling=0)
-    
-    # JSON frissítése
-    v_param = int(time.time())
+
+    v_param   = int(time.time())
     image_url = f"{BASE_URL}/current.jpg?v={v_param}"
-    weather_json = [{"location": CITY, "title": f"{weather_hu} {temp}C", "author": "Gemini Design", "image_url": image_url, "url_img": image_url}]
+    weather_json = [{"location": CITY, "title": f"{weather_hu} {temp}C",
+                     "author": "OpenWeatherMap", "image_url": image_url, "url_img": image_url}]
     with open("weather.json", "w", encoding="utf-8") as f:
         json.dump(weather_json, f, ensure_ascii=False, indent=2)
+    print("Kesz!")
 
 if __name__ == "__main__":
     main()
