@@ -12,7 +12,6 @@ GITHUB_REPO = "weather-wallpaper"
 BRANCH = "main"
 BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images"
 
-# --- PROJECTIVITY OPTIMALIZÁLT MÉRETEK (FHD) ---
 CITY = "Budapest"
 WIDGET_Y = 60         
 OFFSET_LEFT = 70      
@@ -22,7 +21,7 @@ FONT_TEMP = 50
 FONT_DESC = 20        
 FONT_LABEL = 16       
 FONT_VALUE = 22       
-FONT_UPDATE = 14      
+FONT_UPDATE = 18  # Kicsit nagyobbra vettem, hogy olvashatóbb legyen
 
 def get_f(size, bold=False):
     path = "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"
@@ -63,7 +62,7 @@ def main():
         weather_hu = {800: "Derült", 801: "Pár felhő", 802: "Részben felhős", 803: "Felhős", 804: "Borult"}.get(weather_id, "Változékony")
     except: return
 
-    # FHD Alap (A Projectivity jobban szereti a kisebb fájlokat)
+    # FHD Alap
     bg = Image.open(f"images/{bg_name}.jpg").convert("RGBA").resize((1920, 1080), Image.Resampling.LANCZOS)
     draw = ImageDraw.Draw(bg)
     colors = {"main": (255,255,255,255), "dim": (255,255,255,180), "line": (255,255,255,40)}
@@ -71,14 +70,13 @@ def main():
     
     curr_x, mid_y = OFFSET_LEFT + INNER_MARGIN, WIDGET_Y + 60
 
-    # Fő ikon
+    # 1. Szekció: Ikon + Celsius
     icon_p = f"images/PNG/{main_icon_name}"
     if os.path.exists(icon_p):
         m_icon = Image.open(icon_p).convert("RGBA").resize((70, 70), Image.Resampling.LANCZOS)
         bg.paste(m_icon, (int(curr_x), int(mid_y - 35)), m_icon)
         curr_x += 90
 
-    # Szövegek (FHD-hoz igazítva)
     draw.text((curr_x, mid_y - 45), f"{temp}°C", font=f_t, fill=colors["main"])
     draw.text((curr_x, mid_y + 15), weather_hu.upper(), font=f_d, fill=colors["dim"])
     
@@ -86,7 +84,7 @@ def main():
     draw.line([(curr_x, WIDGET_Y+20), (curr_x, WIDGET_Y+100)], fill=colors["line"], width=2)
     curr_x += 40
 
-    # Előrejelzés ikonokkal (Kompakt mód)
+    # 2. Szekció: Előrejelzés ikonokkal (Kompakt)
     seen = set()
     f_list = [e for e in f_resp['list'] if datetime.fromtimestamp(e['dt'], tz=timezone(timedelta(seconds=tz_offset))).hour >= 12 and datetime.fromtimestamp(e['dt']).date() > now_dt.date()]
     
@@ -101,11 +99,15 @@ def main():
             bg.paste(f_i, (int(curr_x + 60), int(mid_y - 30)), f_i)
         curr_x += 120
 
-    # Mentés: KÖTELEZŐ RGB és alacsonyabb minőség a Launcher miatt
+    # FRISSÍTVE TAG: Beljebb húzva, hogy ne lógjon le a widgetről
+    draw.text((curr_x + 30, mid_y - 10), f"FRISSÍTVE: {update_time}", font=f_u, fill=colors["dim"])
+
+    # Mentés (RGB-re konvertálva a launcher miatt)
     final = Image.new("RGB", bg.size, (0, 0, 0))
     final.paste(bg, mask=bg.split()[3])
-    final.save("images/current.jpg", "JPEG", quality=80, optimize=True)
+    final.save("images/current.jpg", "JPEG", quality=85, optimize=True)
     
+    # JSON mentés
     v_param = int(time.time())
     with open("weather.json", "w", encoding="utf-8") as f:
         json.dump([{"location": CITY, "title": f"{weather_hu} {temp}C", "image_url": f"{BASE_URL}/current.jpg?v={v_param}"}], f, ensure_ascii=False, indent=2)
