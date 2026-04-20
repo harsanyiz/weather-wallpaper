@@ -15,7 +15,7 @@ BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRAN
 # HORIZONTÁLIS DESIGN KONFIGURÁCIÓ
 # ============================================================
 CITY = "Budapest"
-WIDGET_WIDTH = 1100   # Kicsit növelve az eső % miatt
+WIDGET_WIDTH = 1100   
 WIDGET_HEIGHT = 100
 WIDGET_Y = 50
 OFFSET_LEFT = 50      
@@ -26,6 +26,7 @@ FONT_TEMP = 42
 FONT_LABEL = 14
 FONT_VALUE = 18
 FONT_UPDATE = 12
+FONT_TODAY = 11      # A mai nap nevének mérete
 # ============================================================
 
 def find_font(bold=False):
@@ -53,8 +54,11 @@ def get_weather_hu(weather_id):
     mapping = {800: "Derült", 801: "Pár felhő", 804: "Borult", 511: "Ónos eső"}
     return mapping.get(weather_id, "Változékony")
 
-def get_day_hu(date_obj):
-    napok = ["Hét", "Ked", "Sze", "Csü", "Pén", "Szo", "Vas"]
+def get_day_hu(date_obj, full=False):
+    if full:
+        napok = ["HÉTFŐ", "KEDD", "SZERDA", "CSÜTÖRTÖK", "PÉNTEK", "SZOMBAT", "VASÁRNAP"]
+    else:
+        napok = ["Hét", "Ked", "Sze", "Csü", "Pén", "Szo", "Vas"]
     return napok[date_obj.weekday()]
 
 def get_glass_color(brightness):
@@ -90,8 +94,10 @@ def main():
         is_night = now_dt.timestamp() < data["sys"]["sunrise"] or now_dt.timestamp() > data["sys"]["sunset"]
         image_name = get_image_name(weather_id, is_night)
         weather_hu = get_weather_hu(weather_id)
+        
+        # Mai nap teljes neve
+        today_name = get_day_hu(now_dt, full=True)
 
-        # Eső valószínűsége a következő 3 órára
         rain_chance = f"{round(f_data['list'][0].get('pop', 0) * 100)}%"
 
         forecast_list = []
@@ -127,11 +133,13 @@ def main():
     f_l = get_f(FONT_LABEL)
     f_v = get_f(FONT_VALUE, True)
     f_u = get_f(FONT_UPDATE)
+    f_day = get_f(FONT_TODAY)
 
     curr_x = bx + INNER_MARGIN
     mid_y = by + (bh // 2)
 
-    # 1. Aktuális Hőmérséklet
+    # 1. Mai nap neve + Aktuális Hőmérséklet
+    draw.text((curr_x, mid_y - 38), today_name, font=f_day, fill=colors["dim"]) # Nap neve fent
     temp_txt = f"{temp}°C"
     draw.text((curr_x, mid_y - 25), temp_txt, font=f_t, fill=colors["main"])
     curr_x += draw.textbbox((0,0), temp_txt, font=f_t)[2] + 40
@@ -140,7 +148,7 @@ def main():
     draw.line([(curr_x, by+25), (curr_x, by+bh-25)], fill=colors["line"], width=2)
     curr_x += 40
 
-    # 2. ELŐREJELZÉS (Most ez jön előre)
+    # 2. ELŐREJELZÉS
     for day in forecast_list:
         dt_obj = datetime.fromtimestamp(day['dt'])
         day_name = get_day_hu(dt_obj)
@@ -154,7 +162,7 @@ def main():
     draw.line([(curr_x, by+25), (curr_x, by+bh-25)], fill=colors["line"], width=2)
     curr_x += 40
 
-    # 3. RÉSZLETEK (Érzet, Szél, Eső)
+    # 3. RÉSZLETEK
     fields = [
         ("Érzet", f"{round(data['main']['feels_like'])}°C"),
         ("Szél", f"{round(data['wind']['speed']*3.6)} km/h"),
