@@ -26,7 +26,7 @@ FONT_TEMP = 42
 FONT_LABEL = 14
 FONT_VALUE = 18
 FONT_UPDATE = 12
-FONT_TODAY = 11      # Mai nap neve (kicsi, elegáns)
+FONT_TODAY = 11      
 # ============================================================
 
 def find_font(bold=False):
@@ -114,7 +114,6 @@ def main():
 
     src, dst = f"images/{image_name}.jpg", "images/current.jpg"
     img = Image.open(src).convert("RGB")
-    W, H = img.size
 
     bx, by, bw, bh = OFFSET_LEFT, WIDGET_Y, WIDGET_WIDTH, WIDGET_HEIGHT
     region = img.crop((bx, by, bx + bw, by + bh)).convert("L")
@@ -136,11 +135,21 @@ def main():
     curr_x = bx + INNER_MARGIN
     mid_y = by + (bh // 2)
 
-    # 1. NAP NEVE + HŐMÉRSÉKLET
-    draw.text((curr_x, mid_y - 38), today_full, font=f_day, fill=colors["dim"])
+    # --- 1. NAP NEVE ÉS HŐMÉRSÉKLET (CENTRÁLVA EGYMÁSHOZ) ---
     temp_txt = f"{temp}°C"
+    
+    # Kiszámoljuk a szélességeket a pontos középre igazításhoz
+    temp_w = draw.textbbox((0,0), temp_txt, font=f_t)[2]
+    day_w = draw.textbbox((0,0), today_full, font=f_day)[2]
+    
+    # A nap neve eltolása, hogy a hőfok közepén legyen
+    day_x_offset = (temp_w - day_w) // 2
+    
+    draw.text((curr_x + day_x_offset, mid_y - 38), today_full, font=f_day, fill=colors["dim"])
     draw.text((curr_x, mid_y - 25), temp_txt, font=f_t, fill=colors["main"])
-    curr_x += draw.textbbox((0,0), temp_txt, font=f_t)[2] + 40
+    
+    curr_x += temp_w + 40
+    # --------------------------------------------------------
 
     draw.line([(curr_x, by+25), (curr_x, by+bh-25)], fill=colors["line"], width=2)
     curr_x += 40
@@ -158,7 +167,7 @@ def main():
     draw.line([(curr_x, by+25), (curr_x, by+bh-25)], fill=colors["line"], width=2)
     curr_x += 40
 
-    # 3. RÉSZLETEK (Érzet, Szél, Eső)
+    # 3. RÉSZLETEK
     fields = [
         ("Érzet", f"{round(data['main']['feels_like'])}°C"),
         ("Szél", f"{round(data['wind']['speed']*3.6)} km/h"),
@@ -176,7 +185,6 @@ def main():
 
     img.convert("RGB").save(dst, "JPEG", quality=95)
     
-    # JSON mentés a végén
     v_param = int(time.time())
     image_url = f"{BASE_URL}/current.jpg?v={v_param}"
     weather_json = [{"location": CITY, "title": f"{weather_hu} {temp}C", "author": "Gemini Design", "image_url": image_url, "url_img": image_url}]
