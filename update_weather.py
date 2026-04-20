@@ -124,14 +124,12 @@ def main():
     draw = ImageDraw.Draw(img)
 
     f_t, f_l, f_v = get_f(FONT_TEMP, True), get_f(FONT_LABEL), get_f(FONT_VALUE, True)
-    f_emoji = get_emoji_f(FONT_TEMP - 10)
 
     # Rajzolás vízszintesen
     curr_x = bx + INNER_MARGIN
     mid_y = by + (bh // 2)
 
-    # 1. Hőmérséklet + Ikon
-    w_icon = get_weather_icon(weather_id, is_night)
+    # 1. Hőmérséklet
     temp_txt = f"{temp}°C"
     draw.text((curr_x, mid_y - 25), temp_txt, font=f_t, fill=colors["main"])
     curr_x += draw.textbbox((0,0), temp_txt, font=f_t)[2] + 40
@@ -150,20 +148,28 @@ def main():
     for label, val in fields_to_show:
         draw.text((curr_x, mid_y - 20), label.upper(), font=f_l, fill=colors["dim"])
         draw.text((curr_x, mid_y), val, font=f_v, fill=colors["main"])
-        curr_x += max(draw.textbbox((0,0), label.upper(), font=f_l)[2], draw.textbbox((0,0), val, font=f_v)[2]) + 50
+        l_w = draw.textbbox((0,0), label.upper(), font=f_l)[2]
+        v_w = draw.textbbox((0,0), val, font=f_v)[2]
+        curr_x += max(l_w, v_w) + 50
 
     # Mentés
     img.convert("RGB").save(dst, "JPEG", quality=95)
     
-    # JSON frissítés a cache-trükkel
+    # JSON frissítés a cache-trükkel ÉS lista formátummal
     v_param = int(time.time())
     image_url = f"{BASE_URL}/current.jpg?v={v_param}"
-    weather_json = {
-        "location": CITY, "title": f"{weather_hu} {temp}C",
-        "author": "Gemini Design", "image_url": image_url
-    }
+    
+    weather_json = [{
+        "location": CITY, 
+        "title": f"{weather_hu} {temp}C",
+        "author": "Gemini Design", 
+        "image_url": image_url,
+        "url_img": image_url
+    }]
+    
     with open("weather.json", "w", encoding="utf-8") as f:
         json.dump(weather_json, f, ensure_ascii=False, indent=2)
+    print(f"Minden kész! weather.json és current.jpg frissítve.")
 
 if __name__ == "__main__":
     main()
