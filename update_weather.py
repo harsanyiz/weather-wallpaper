@@ -6,17 +6,17 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageStat
 
 # --- KONFIGURÁCIÓ (A Designer Pro és a kért javítások alapján) ---
 CITY = "Budapest"
-WIDGET_WIDTH = 440       # Szélesebb kártya a jobb olvashatóságért
+WIDGET_WIDTH = 325
 WIDGET_HEIGHT = 520      # Megemelt magasság, hogy legyen hely alul
 WIDGET_X_OFFSET = 70     # Távolság a jobb széltől
-CORNER_RADIUS = 30
-INNER_MARGIN = 40
+CORNER_RADIUS = 26
+INNER_MARGIN = 34
 
 # Betűméretek
-FONT_TEMP = 90
-FONT_LABEL = 22
-FONT_VALUE = 24
-FONT_FOOTER = 18
+FONT_TEMP = 77
+FONT_LABEL = 17
+FONT_VALUE = 19
+FONT_FOOTER = 14
 
 API_KEY = os.environ.get("OWM_API_KEY", "f1140d0ccb478ba741a957a67dd074ca")
 GITHUB_USER = "harsanyiz"
