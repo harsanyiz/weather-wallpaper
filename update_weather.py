@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timezone, timedelta
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
-# API és adatok
+# API és GitHub adatok
 API_KEY = os.environ.get("OWM_API_KEY")
 GITHUB_USER = "harsanyiz"
 GITHUB_REPO = "weather-wallpaper"
@@ -13,7 +13,7 @@ BRANCH = "main"
 BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images"
 
 # ============================================================
-# 4K KONFIGURÁCIÓ - JAVÍTOTT HÁTTÉR ÉS PNG IKONOK
+# 4K KONFIGURÁCIÓ - PONTOS PNG ELÉRÉSSEL
 # ============================================================
 CITY = "Budapest"
 WIDGET_Y = 100        
@@ -36,16 +36,15 @@ def get_f(size, bold=False):
         if os.path.exists(p): return ImageFont.truetype(p, size)
     return ImageFont.load_default()
 
-def get_old_bg_name(weather_id, is_night):
-    """A régi háttérkép elnevezési logikád"""
+def get_bg_name(weather_id, is_night):
     suffix = "night" if is_night else "day"
     if weather_id in [611, 612, 613, 615, 616]: return f"sleet_{suffix}"
     elif weather_id in [620, 621, 622, 600, 601, 602]: return f"snow_{suffix}"
     elif weather_id == 800: return f"sunny_{suffix}"
     else: return f"cloudy_{suffix}"
 
-def get_new_png_icon(weather_id, is_night):
-    """Az új PNG ikonok elnevezése a /PNG mappából"""
+def get_icon_name(weather_id, is_night):
+    """Leképezi az ID-t a feltöltött PNG fájlneveidre"""
     suffix = "night" if is_night else "day"
     if weather_id == 800: return f"{suffix}_clear"
     elif weather_id in [801, 802]: return f"{suffix}_partial_cloud"
@@ -53,6 +52,7 @@ def get_new_png_icon(weather_id, is_night):
     elif 500 <= weather_id <= 531: return f"{suffix}_rain"
     elif 600 <= weather_id <= 622: return f"{suffix}_snow"
     elif 701 <= weather_id <= 741: return "fog"
+    elif 200 <= weather_id <= 232: return f"{suffix}_rain_thunder" # vagy thunder.png
     return "cloudy"
 
 def main():
@@ -67,21 +67,15 @@ def main():
         update_time = now_dt.strftime("%H:%M")
         is_night = now_dt.timestamp() < curr_r["sys"]["sunrise"] or now_dt.timestamp() > curr_r["sys"]["sunset"]
         
-        # Két különböző név: egyik a háttérnek (.jpg), másik az ikonnak (.png)
-        bg_file_name = get_old_bg_name(weather_id, is_night)
-        icon_file_name = get_new_png_icon(weather_id, is_night)
-        
+        bg_file = get_bg_name(weather_id, is_night)
+        icon_file = get_icon_name(weather_id, is_night)
         weather_hu = {800: "Derült", 801: "Pár felhő", 802: "Részben felhős", 803: "Felhős", 804: "Borult"}.get(weather_id, "Változékony")
     except Exception as e:
-        print(f"Adathiba: {e}"); return
+        print(f"Hiba: {e}"); return
 
-    # HÁTTÉRKÉP BETÖLTÉSE (A régi nevekkel)
-    src = f"images/{bg_file_name}.jpg"
-    if not os.path.exists(src):
-        # Ha végképp nincs meg, megpróbáljuk a sima sunny_day-t mentőövnek
-        src = "images/sunny_day.jpg" if not is_night else "images/cloudy_night.jpg"
-
-    img = Image.open(src).convert("RGB")
+    # Háttérkép
+    src = f"images/{bg_file}.jpg"
+    img = Image.open(src if os.path.exists(src) else "images/sunny_day.jpg").convert("RGB")
     img = img.resize((3840, 2160), Image.Resampling.LANCZOS).convert("RGBA")
     draw = ImageDraw.Draw(img)
 
@@ -91,16 +85,16 @@ def main():
     mid_y = WIDGET_Y + 100
     curr_x = OFFSET_LEFT + INNER_MARGIN
 
-    # --- 1. SZEKCIÓ: PNG IKON + HŐFOK BLOKK ---
-    icon_path = f"PNG/{icon_file_name}.png"
+    # --- IKON BETÖLTÉSE AZ images/PNG/ MAPPÁBÓL ---
+    icon_path = f"images/PNG/{icon_file}.png"
     if os.path.exists(icon_path):
-        m_icon = Image.open(icon_path).convert("RGBA")
-        m_icon = m_icon.resize((160, 160), Image.Resampling.LANCZOS)
-        img.paste(m_icon, (int(curr_x), int(mid_y - 80)), m_icon)
+        icon_img = Image.open(icon_path).convert("RGBA")
+        icon_img = icon_img.resize((160, 160), Image.Resampling.LANCZOS)
+        img.paste(icon_img, (int(curr_x), int(mid_y - 80)), icon_img)
         curr_x += 190
 
+    # Szöveges adatok
     day_name = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat", "Vasárnap"][now_dt.weekday()].upper()
-    
     draw.text((int(curr_x), int(mid_y - 90)), day_name, font=f_l, fill=colors["dim"])
     draw.text((int(curr_x), int(mid_y - 65)), f"{temp}°C", font=f_t, fill=colors["main"])
     draw.text((int(curr_x), int(mid_y + 40)), weather_hu.upper(), font=f_d, fill=colors["dim"])
@@ -109,7 +103,7 @@ def main():
     draw.line([(curr_x, WIDGET_Y+40), (curr_x, WIDGET_Y+160)], fill=colors["line"], width=3)
     curr_x += 80
 
-    # --- 2. SZEKCIÓ: RÉSZLETEK ---
+    # Részletek (Érzet, Szél, Pára)
     details = [
         ("Érzet", f"{round(curr_r['main']['feels_like'])}°C"),
         ("Szél", f"{round(curr_r['wind']['speed']*3.6)} km/h"),
@@ -120,7 +114,7 @@ def main():
         draw.text((int(curr_x), int(mid_y)), val, font=f_v, fill=colors["main"])
         curr_x += max(draw.textbbox((0,0), label.upper(), font=f_l)[2], draw.textbbox((0,0), val, font=f_v)[2]) + 90
 
-    # --- 3. SZEKCIÓ: ELŐREJELZÉS ---
+    # Előrejelzés
     draw.line([(curr_x, WIDGET_Y+40), (curr_x, WIDGET_Y+160)], fill=colors["line"], width=3)
     curr_x += 80
     
@@ -139,13 +133,11 @@ def main():
         draw.text((int(curr_x), int(mid_y)), f"{round(day['main']['temp'])}°C", font=f_v, fill=colors["main"])
         curr_x += 160
 
-    # --- 4. FRISSÍTÉS ---
     draw.text((int(curr_x + 20), int(mid_y - 15)), f"FRISSÍTVE: {update_time}", font=f_u, fill=colors["dim"])
 
-    # Mentés
+    # Mentés és JSON frissítés
     img.convert("RGB").save("images/current.jpg", "JPEG", quality=100, subsampling=0)
     
-    # JSON mentés
     v_param = int(time.time())
     image_url = f"{BASE_URL}/current.jpg?v={v_param}"
     with open("weather.json", "w", encoding="utf-8") as f:
