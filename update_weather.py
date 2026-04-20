@@ -15,7 +15,7 @@ BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRAN
 # HORIZONTÁLIS DESIGN KONFIGURÁCIÓ
 # ============================================================
 CITY = "Budapest"
-WIDGET_WIDTH = 1100   
+WIDGET_WIDTH = 1150   
 WIDGET_HEIGHT = 100
 WIDGET_Y = 50
 OFFSET_LEFT = 50      
@@ -135,21 +135,20 @@ def main():
     curr_x = bx + INNER_MARGIN
     mid_y = by + (bh // 2)
 
-    # --- 1. NAP NEVE ÉS HŐMÉRSÉKLET (CENTRÁLVA EGYMÁSHOZ) ---
+    # --- 1. NAP NEVE ÉS HŐMÉRSÉKLET (CENTRÁLVA ÉS FÜGGŐLEGESEN JAVÍTVA) ---
     temp_txt = f"{temp}°C"
     
-    # Kiszámoljuk a szélességeket a pontos középre igazításhoz
     temp_w = draw.textbbox((0,0), temp_txt, font=f_t)[2]
     day_w = draw.textbbox((0,0), today_full, font=f_day)[2]
     
-    # A nap neve eltolása, hogy a hőfok közepén legyen
     day_x_offset = (temp_w - day_w) // 2
     
-    draw.text((curr_x + day_x_offset, mid_y - 38), today_full, font=f_day, fill=colors["dim"])
-    draw.text((curr_x, mid_y - 25), temp_txt, font=f_t, fill=colors["main"])
+    # Pozíciók lejjebb tolva a szimmetria érdekében
+    draw.text((curr_x + day_x_offset, mid_y - 34), today_full, font=f_day, fill=colors["dim"])
+    draw.text((curr_x, mid_y - 21), temp_txt, font=f_t, fill=colors["main"])
     
     curr_x += temp_w + 40
-    # --------------------------------------------------------
+    # -----------------------------------------------------------------------
 
     draw.line([(curr_x, by+25), (curr_x, by+bh-25)], fill=colors["line"], width=2)
     curr_x += 40
