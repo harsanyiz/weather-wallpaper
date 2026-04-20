@@ -13,7 +13,7 @@ BRANCH = "main"
 BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images"
 
 # ============================================================
-# 4K KONFIGURÁCIÓ - PRECIZ IGAZÍTÁSSAL ÉS MINDEN IKONNAL
+# 4K KONFIGURÁCIÓ - TÖKÉLETESRE CENTIZETT IGAZÍTÁS
 # ============================================================
 CITY = "Budapest"
 WIDGET_Y = 100        
@@ -83,47 +83,40 @@ def main():
     mid_y = WIDGET_Y + 100
     curr_x = OFFSET_LEFT + INNER_MARGIN
 
-    # --- 1. SZEKCIÓ: FŐ IKON (EXTRA KICSI) + HŐFOK (PRECIZ KÖZÉPRE IGAZÍTÁSSAL) ---
+    # --- 1. SZEKCIÓ: FŐ IKON ÉS HŐFOK KÖZÉPRE HÚZVA ---
     icon_path = f"images/PNG/{icon_file}.png"
     if os.path.exists(icon_path):
         icon_img = Image.open(icon_path).convert("RGBA").resize((100, 100), Image.Resampling.LANCZOS)
+        # Fixált Y pozíció, hogy a 10°C középvonalán legyen
+        img.paste(icon_img, (int(curr_x), int(mid_y - 35)), icon_img)
         
-        # JAVÍTÁS: A Celsius szöveg középvonalát használjuk referenciának az ikonhoz
-        temp_w = draw.textbbox((0, 0), f"{temp}°C", font=f_t)[2]
-        img.paste(icon_img, (int(curr_x), int(mid_y - 70)), icon_img)
-        
-        # DERÜLT felirat az ikon alá (pozíció precízen számolva)
         w_text = weather_hu.upper()
         w_bbox = draw.textbbox((0, 0), w_text, font=f_d)
         w_offset = (100 - (w_bbox[2] - w_bbox[0])) // 2
-        draw.text((int(curr_x + w_offset), int(mid_y + 40)), w_text, font=f_d, fill=colors["dim"])
+        draw.text((int(curr_x + w_offset), int(mid_y + 75)), w_text, font=f_d, fill=colors["dim"])
         curr_x += 140
 
-    day_name = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat", "Vasárnap"][now_dt.weekday()].upper()
-    draw.text((int(curr_x), int(mid_y - 90)), day_name, font=f_l, fill=colors["dim"])
-    # A Celsius felirat függőleges pozíciója maradt, de a hold ikon hozzá lett igazítva
+    draw.text((int(curr_x), int(mid_y - 90)), (["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat", "Vasárnap"][now_dt.weekday()]).upper(), font=f_l, fill=colors["dim"])
+    # Celsius függőlegesen belőve
     draw.text((int(curr_x), int(mid_y - 65)), f"{temp}°C", font=f_t, fill=colors["main"])
     
     curr_x += draw.textbbox((0,0), f"{temp}°C", font=f_t)[2] + 80
     draw.line([(curr_x, WIDGET_Y+40), (curr_x, WIDGET_Y+160)], fill=colors["line"], width=3)
     curr_x += 80
 
-    # --- 2. SZEKCIÓ: RÉSZLETEK IGAZÍTOTT KIS IKONOKKAL (ÉRZET, SZÉL, PÁRA) ---
+    # --- 2. SZEKCIÓ: RÉSZLETEK - FIXÁLT IKON MAGASSÁG ---
     details = [
         ("Érzet", f"{round(curr_r['main']['feels_like'])}°C", "day_clear.png"),
         ("Szél", f"{round(curr_r['wind']['speed']*3.6)} km/h", "wind.png"),
         ("Pára", f"{curr_r['main']['humidity']}%", "rain.png")
     ]
     
-    # JAVÍTÁS: Fix függőleges pozíció a kis ikonoknak, hogy egy magasságban legyenek
-    det_icon_y = mid_y - 50 
-    
     for label, val, i_file in details:
         det_icon_path = f"images/PNG/{i_file}"
         if os.path.exists(det_icon_path):
             d_icon = Image.open(det_icon_path).convert("RGBA").resize((35, 35), Image.Resampling.LANCZOS)
-            # JAVÍTÁS: Kifejezetten a precíz det_icon_y koordinátára tesszük őket, nem relatívan
-            img.paste(d_icon, (int(curr_x - 45), int(det_icon_y)), d_icon)
+            # Kifejezetten a szöveg sorába igazítva az ikont
+            img.paste(d_icon, (int(curr_x - 45), int(mid_y - 5)), d_icon)
             
         draw.text((int(curr_x), int(mid_y - 50)), label.upper(), font=f_l, fill=colors["dim"])
         draw.text((int(curr_x), int(mid_y)), val, font=f_v, fill=colors["main"])
@@ -146,7 +139,6 @@ def main():
         d_name = ["Hét", "Ked", "Sze", "Csü", "Pén", "Szo", "Vas"][datetime.fromtimestamp(day['dt']).weekday()].upper()
         draw.text((int(curr_x), int(mid_y - 80)), d_name, font=f_l, fill=colors["dim"])
         draw.text((int(curr_x), int(mid_y - 45)), f"{round(day['main']['temp'])}°C", font=f_v, fill=colors["main"])
-        
         f_icon_name = get_icon_name(day['weather'][0]['id'], False)
         f_icon_path = f"images/PNG/{f_icon_name}.png"
         if os.path.exists(f_icon_path):
@@ -156,6 +148,12 @@ def main():
 
     draw.text((int(curr_x + 20), int(mid_y - 15)), f"FRISSÍTVE: {update_time}", font=f_u, fill=colors["dim"])
     img.convert("RGB").save("images/current.jpg", "JPEG", quality=100)
+    
+    # JSON frissítése a cache ellen v= timestamp-el
+    v_param = int(time.time())
+    image_url = f"{BASE_URL}/current.jpg?v={v_param}"
+    with open("weather.json", "w", encoding="utf-8") as f:
+        json.dump([{"location": CITY, "title": f"{weather_hu} {temp}C", "image_url": image_url}], f, ensure_ascii=False, indent=2)
 
 if __name__ == "__main__":
     main()
