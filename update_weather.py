@@ -4,6 +4,7 @@ import sys
 import time
 import json
 import math
+import random
 import requests
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageStat
@@ -29,12 +30,49 @@ FONT_VALUE  = 36
 FONT_UPDATE = 24
 FONT_SUN    = 22
 
-ICON_SIZE = 80  # px – 512x512 PNG → 80x80
+ICON_SIZE = 80
 # ============================================================
 
-print("=== TEST_OVERFLIGHT INDÍTÁSA ===")
+print("=== DINAMIKUS IKON TESZT ===")
 
 os.makedirs("images", exist_ok=True)
+
+# ----------------------------------------------------------------
+# IKON MAPPING - IDŐJÁRÁS TÍPUS → IKON FÁJLNÉV
+# ----------------------------------------------------------------
+def get_icon_name(weather_type, is_night=False):
+    """weather_type lehet: clear, partly_cloudy, cloudy, overcast, rain, thunder, sleet, snow, fog, mist, wind, tornado"""
+    
+    mapping = {
+        # Derült
+        "clear": f"{'night' if is_night else 'day'}_clear",
+        # Pár felhős
+        "partly_cloudy": f"{'night' if is_night else 'day'}_partial_cloud",
+        # Felhős (alap)
+        "cloudy": "cloudy",
+        # Borult
+        "overcast": "overcast",
+        # Eső
+        "rain": f"{'night' if is_night else 'day'}_rain",
+        # Zivatar (eső + villám)
+        "thunder": f"{'night' if is_night else 'day'}_rain_thunder",
+        # Ónos eső
+        "sleet": f"{'night' if is_night else 'day'}_sleet",
+        # Hó
+        "snow": f"{'night' if is_night else 'day'}_snow",
+        # Hóvihar / hó + villám
+        "snow_thunder": f"{'night' if is_night else 'day'}_snow_thunder",
+        # Köd
+        "fog": "fog",
+        # Pára / köd
+        "mist": "mist",
+        # Szél
+        "wind": "wind",
+        # Tornádó
+        "tornado": "tornado",
+    }
+    
+    return mapping.get(weather_type, "cloudy")
 
 # ----------------------------------------------------------------
 # SEGÉDFÜGGVÉNYEK
@@ -71,7 +109,6 @@ def draw_glass_bar(img, bx, by, bw, bh):
     return img
 
 def draw_separator(img, x, y_top, y_bot, color_rgb, max_alpha=160, gap=4):
-    """Penge-szerű gradiens elválasztó – szinuszos alpha, dupla vonal."""
     height = y_bot - y_top
     pixels = img.load()
     iw, ih = img.size
@@ -91,20 +128,20 @@ def draw_separator(img, x, y_top, y_bot, color_rgb, max_alpha=160, gap=4):
                 )
 
 def load_icon(name):
-    """PNG ikon letöltése a repóból – már 80x80 RGBA, nincs resize."""
     url = f"{BASE_URL}/images/ICONS_PNG80/{name}.png"
     try:
         r = requests.get(url, timeout=10)
         r.raise_for_status()
         icon = Image.open(BytesIO(r.content)).convert("RGBA")
-        print(f"✓ Ikon betöltve: {name}.png ({icon.size[0]}x{icon.size[1]})")
+        if icon.size != (ICON_SIZE, ICON_SIZE):
+            icon = icon.resize((ICON_SIZE, ICON_SIZE), Image.Resampling.LANCZOS)
+        print(f"✓ Ikon betöltve: {name}.png")
         return icon
     except Exception as e:
-        print(f"✗ Ikon hiba ({name}): {e}")
+        print(f"✗ Ikon hiba ({name}.png): {e}")
         return None
 
 def paste_icon(img, icon, cx, cy):
-    """Ikon beillesztése – cx/cy a középpont."""
     if icon is None:
         return
     x = cx - ICON_SIZE // 2
@@ -112,16 +149,56 @@ def paste_icon(img, icon, cx, cy):
     img.paste(icon, (x, y), icon)
 
 # ----------------------------------------------------------------
-# HÁTTÉR – TELJESEN FEKETE
+# HÁTTÉR – FEKETE
 # ----------------------------------------------------------------
 width, height = 3840, 2160
 img = Image.new("RGB", (width, height), (0, 0, 0))
 print("✓ Fekete háttér generálva")
 
 # ----------------------------------------------------------------
-# IKON BETÖLTÉSE
+# VÉLETLENSZERŰ IDŐJÁRÁS GENERÁLÁS (teszteléshez)
 # ----------------------------------------------------------------
-icon_cloudy = load_icon("cloudy")
+weather_types = ["clear", "partly_cloudy", "cloudy", "overcast", "rain", "thunder", "sleet", "snow", "fog", "mist", "wind", "tornado"]
+descriptions = {
+    "clear": "DERÜLT",
+    "partly_cloudy": "PÁR FELHŐ",
+    "cloudy": "FELHŐS",
+    "overcast": "BORULT",
+    "rain": "ESŐS",
+    "thunder": "ZIVATAROS",
+    "sleet": "ÓNOS ESŐ",
+    "snow": "HAVAS",
+    "fog": "KÖDÖS",
+    "mist": "PÁRÁS",
+    "wind": "SZELES",
+    "tornado": "TORNÁDÓ",
+}
+
+# Véletlenszerű időjárás a mai napra
+today_weather = random.choice(weather_types)
+is_night = random.choice([True, False])  # Véletlenszerűen nappal/éjjel
+today_icon_name = get_icon_name(today_weather, is_night)
+today_desc = descriptions[today_weather]
+
+# Véletlenszerű időjárás a 3 napra
+forecast_weathers = random.choices(weather_types, k=3)
+forecast_icons = [get_icon_name(w, False) for w in forecast_weathers]  # Előrejelzés nappal
+forecast_descs = [descriptions[w] for w in forecast_weathers]
+
+# Véletlenszerű hőmérséklet
+temp = random.randint(-5, 35)
+feels = temp + random.randint(-3, 3)
+wind = random.randint(0, 40)
+humidity = random.randint(30, 95)
+
+print(f"✓ Mai időjárás: {today_desc} ({'éjjel' if is_night else 'nappal'}) - {temp}°C")
+print(f"✓ Előrejelzés: {[descriptions[w] for w in forecast_weathers]}")
+
+# ----------------------------------------------------------------
+# IKONOK BETÖLTÉSE
+# ----------------------------------------------------------------
+today_icon = load_icon(today_icon_name)
+forecast_icons_loaded = [load_icon(name) for name in forecast_icons]
 
 # ----------------------------------------------------------------
 # GLASS BAR
@@ -157,9 +234,9 @@ def sep():
 # ----------------------------------------------------------------
 # 1. SZEKCIÓ – NAP + HŐMÉRSÉKLET + IKON + LEÍRÁS
 # ----------------------------------------------------------------
-day_txt  = "KEDD"
-temp_txt = "9°C"
-desc_txt = "RÉSZBEN FELHŐS"
+day_txt  = "MA"
+temp_txt = f"{temp}°C"
+desc_txt = today_desc
 
 day_w  = draw.textbbox((0,0), day_txt,  font=f_l)[2]
 temp_w = draw.textbbox((0,0), temp_txt, font=f_t)[2]
@@ -170,16 +247,16 @@ draw.text((int(curr_x + (max_w-day_w)  / 2), int(mid_y - 90)), day_txt,  font=f_
 draw.text((int(curr_x + (max_w-temp_w) / 2), int(mid_y - 62)), temp_txt, font=f_t, fill=colors["main"])
 draw.text((int(curr_x + (max_w-desc_w) / 2), int(mid_y + 38)), desc_txt, font=f_d, fill=colors["dim"])
 
-# Ikon: hőfok jobb oldalán, függőlegesen középre
+# Ikon a hőfok jobb oldalán
 icon_x = int(curr_x + max_w + 30 + ICON_SIZE // 2)
-paste_icon(img, icon_cloudy, icon_x, mid_y - 10)
+paste_icon(img, today_icon, icon_x, mid_y - 10)
 curr_x += int(max_w + 30 + ICON_SIZE + 30)
 sep()
 
 # ----------------------------------------------------------------
 # 2. SZEKCIÓ – ÉRZET / SZÉL / PÁRA
 # ----------------------------------------------------------------
-fields = [("Érzet", "7°C"), ("Szél", "16 km/h"), ("Pára", "67%")]
+fields = [("Érzet", f"{feels}°C"), ("Szél", f"{wind} km/h"), ("Pára", f"{humidity}%")]
 for label, val in fields:
     lw = draw.textbbox((0,0), label.upper(), font=f_l)[2]
     vw = draw.textbbox((0,0), val,           font=f_v)[2]
@@ -202,20 +279,19 @@ curr_x += col_w + 70
 sep()
 
 # ----------------------------------------------------------------
-# 4. SZEKCIÓ – 3 NAPOS ELŐREJELZÉS ikonnal
+# 4. SZEKCIÓ – 3 NAPOS ELŐREJELZÉS DINAMIKUS IKONOKKAL
 # ----------------------------------------------------------------
-forecast = [
-    ("SZE", "15°C", "BORULT", icon_cloudy),
-    ("CSÜ", "16°C", "BORULT", icon_cloudy),
-    ("PÉN", "16°C", "BORULT", icon_cloudy),
-]
-for d_name, f_val, f_desc, f_icon in forecast:
+napok = ["HÉF", "KED", "SZE"]
+forecast_data = []
+for i in range(3):
+    forecast_data.append((napok[i], f"{random.randint(-5, 35)}°C", forecast_descs[i], forecast_icons_loaded[i]))
+
+for d_name, f_val, f_desc, f_icon in forecast_data:
     nw    = draw.textbbox((0,0), d_name, font=f_l)[2]
     vw    = draw.textbbox((0,0), f_val,  font=f_v)[2]
     dw    = draw.textbbox((0,0), f_desc, font=f_s)[2]
     col_w = max(nw, vw, dw, ICON_SIZE)
 
-    # Ikon középen, szövegek alatta
     paste_icon(img, f_icon, int(curr_x + col_w//2), int(mid_y - 55))
     draw.text((int(curr_x + (col_w-nw)/2), int(mid_y + 2)),  d_name, font=f_l, fill=colors["dim"])
     draw.text((int(curr_x + (col_w-vw)/2), int(mid_y + 35)), f_val,  font=f_v, fill=colors["main"])
@@ -242,7 +318,7 @@ print(f"✓ Kép mentve: {output_path} ({os.path.getsize(output_path):,} bytes)"
 unique_id = int(time.time() * 1000)
 weather_json = [{
     "location": "TEST - Budapest",
-    "title": f"Részben felhős 9°C – {time.strftime('%Y-%m-%d %H:%M')}",
+    "title": f"{today_desc} {temp}°C – {time.strftime('%Y-%m-%d %H:%M')}",
     "author": "GitHub Action",
     "url_img":   f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images/current.jpg?v={unique_id}",
     "image_url": f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images/current.jpg?v={unique_id}"
