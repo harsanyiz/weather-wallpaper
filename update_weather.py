@@ -26,7 +26,7 @@ ICON_SIZE     = 80
 
 # Forecast panel méretek
 FC_ICON_SIZE  = 48   # kisebb ikon az előrejelzésnél
-FC_COL_WIDTH  = 120  # egy nap oszlopszélessége
+FC_COL_WIDTH  = 140  # egy nap oszlopszélessége
 
 FONT_TEMP   = 90
 FONT_DESC   = 30
@@ -287,11 +287,11 @@ def main():
             img.paste(day_icon, (curr_x, sicon_y), day_icon)
         sr_w = draw.textbbox((0, 0), sunrise_str, font=f_v)[2]
         draw.text((curr_x + SUN_ICON_SIZE + 8, stext_y), sunrise_str, font=f_v, fill=c_main)
-        curr_x += SUN_ICON_SIZE + 8 + sr_w + 16
+        curr_x += SUN_ICON_SIZE + 8 + sr_w + 28
 
         dot_w = draw.textbbox((0, 0), "•", font=f_v)[2]
         draw.text((curr_x, stext_y), "•", font=f_v, fill=c_dim)
-        curr_x += dot_w + 16
+        curr_x += dot_w + 28
 
         if night_icon:
             img.paste(night_icon, (curr_x, sicon_y), night_icon)
@@ -369,7 +369,7 @@ def main():
         widget_right = OFFSET_LEFT + WIDGET_WIDTH - INNER_MARGIN
         upd1_w = draw.textbbox((0, 0), "FRISSÍTVE", font=f_u)[2]
         upd2_w = draw.textbbox((0, 0), "00:00", font=f_u)[2]
-        upd_reserved = max(upd1_w, upd2_w) + 80
+        upd_reserved = max(upd1_w, upd2_w) + 50
         fc_available = widget_right - upd_reserved - fc_start_x
         fc_col_w = min(FC_COL_WIDTH, fc_available // 4)
 
