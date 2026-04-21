@@ -22,7 +22,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install Pillow
+          pip install Pillow requests
       
       - name: Run test
         run: python test_overflight.py
