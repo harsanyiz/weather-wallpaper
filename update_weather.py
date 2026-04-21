@@ -18,29 +18,28 @@ BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRAN
 # ============================================================
 CITY = "Budapest"
 WIDGET_WIDTH  = 2200
-WIDGET_HEIGHT = 360   # Apple TV HERO ROW
+WIDGET_HEIGHT = 240
 WIDGET_Y      = 80
 OFFSET_LEFT   = 135
 INNER_MARGIN  = 80
 ICON_SIZE     = 80
 
 # Forecast panel méretek
-FC_ICON_SIZE  = 64
-FC_COL_WIDTH  = 150
+FC_ICON_SIZE  = 48   # kisebb ikon az előrejelzésnél
+FC_COL_WIDTH  = 115  # egy nap oszlopszélessége
 
-# Betűméretek – Apple TV stílus
-FONT_TEMP   = 150
-FONT_DESC   = 40
-FONT_LABEL  = 30
-FONT_VALUE  = 32
+FONT_TEMP   = 90
+FONT_DESC   = 30
+FONT_LABEL  = 26
+FONT_VALUE  = 34
 FONT_UPDATE = 22
-FONT_FC_DAY = 30
-FONT_FC_TMP = 36
-FONT_FC_DSC = 22
+FONT_SUN    = 20
+FONT_FC_DAY = 28   # nap neve (felül)
+FONT_FC_TMP = 30   # hőmérséklet (alul)
+FONT_FC_DSC = 20   # leírás (alul, kicsi)
+# ============================================================
 
-# ============================================================
-# HÁTTÉRKÉP MAPPING
-# ============================================================
+# ---- Háttérkép mapping ----
 BG_MAP = {
     "sunny_day":         "images/sunny_day.jpg",
     "sunny_night":       "images/sunny_night.jpg",
@@ -83,9 +82,11 @@ def load_bg(weather_id, is_night):
     path = BG_MAP.get(key)
     if path and os.path.exists(path):
         img = Image.open(path).convert("RGBA")
+        # resize to 3840x2160 ha szükséges
         if img.size != (3840, 2160):
             img = img.resize((3840, 2160), Image.Resampling.LANCZOS)
         return img
+    # fallback: sötét alap
     return Image.new("RGBA", (3840, 2160), (5, 5, 15, 255))
 
 def find_font(bold=False):
@@ -152,27 +153,31 @@ def load_icon(name, size=None):
         print(f"  [icon] Nem sikerült betölteni: {name} – {e}")
         return None
 
-def draw_glass_bar(img, bx, by, bw, bh, blur=20, dark=60):
+def draw_glass_bar(img, bx, by, bw, bh, blur=40, dark=100):
+    """Glassmorphism bar: blur + sötét overlay + rounded mask."""
     region = img.crop((bx, by, bx + bw, by + bh)).convert("RGBA")
     blurred = region.filter(ImageFilter.GaussianBlur(blur))
     mask = Image.new("L", (bw, bh), 0)
-    ImageDraw.Draw(mask).rounded_rectangle((0, 0, bw - 1, bh - 1), radius=50, fill=200)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, bw - 1, bh - 1), radius=30, fill=200)
     overlay = Image.new("RGBA", (bw, bh), (0, 0, 15, dark))
     blurred.putalpha(mask)
     result = Image.alpha_composite(blurred, overlay)
     img.paste(result, (bx, by), result)
 
+    # Finom keret
     draw = ImageDraw.Draw(img)
     draw.rounded_rectangle(
         (bx, by, bx + bw - 1, by + bh - 1),
-        radius=50,
+        radius=30,
         outline=(255, 255, 255, 35),
         width=1
     )
     return img
 
 def draw_divider(draw, x, y_top, y_bot, color):
-    draw.line([(x, y_top), (x, y_bot)], fill=color, width=1)
+    for dx in [0, 3]:
+        draw.line([(x + dx, y_top), (x + dx, y_bot)], fill=color, width=1)
+
 def main():
     try:
         # ── 1. ADATOK ──────────────────────────────────────────────
@@ -203,109 +208,141 @@ def main():
         sunset_str  = datetime.fromtimestamp(resp["sys"]["sunset"],  tz=tz).strftime("%H:%M")
         local_now   = datetime.now(tz)
 
-        # ── 2. HÁTTÉRKÉP ───────────────────────────────────────────
+        # ── 2. ALAP: HÁTTÉRKÉP (időjárás + napszak) ────────────────
         img = load_bg(weather_id, is_night)
 
-        # ── 3. GLASS BAR (Apple TV stílus) ─────────────────────────
-        img = draw_glass_bar(img, OFFSET_LEFT, WIDGET_Y, WIDGET_WIDTH, WIDGET_HEIGHT, blur=20, dark=60)
+        # ── 3. GLASS BAR ───────────────────────────────────────────
+        img = draw_glass_bar(img, OFFSET_LEFT, WIDGET_Y, WIDGET_WIDTH, WIDGET_HEIGHT)
 
         draw = ImageDraw.Draw(img)
-
-        # Színek – Apple TV
         c_main = (255, 255, 255, 255)
-        c_dim  = (220, 225, 235, 200)
-        c_ter  = (200, 205, 215, 140)
-        c_div  = (255, 255, 255, 40)
+        c_dim  = (200, 205, 215, 200)
+        c_div  = (255, 255, 255, 45)
 
-        # Betűk
-        f_temp = get_f(FONT_TEMP, bold=True)
-        f_desc = get_f(FONT_DESC)
-        f_day  = get_f(FONT_LABEL)
-        f_val  = get_f(FONT_VALUE, bold=True)
-        f_fc_d = get_f(FONT_FC_DAY, bold=True)
-        f_fc_t = get_f(FONT_FC_TMP, bold=True)
-        f_fc_s = get_f(FONT_FC_DSC)
-        f_upd  = get_f(FONT_UPDATE)
+        f_t  = get_f(FONT_TEMP,  bold=True)
+        f_d  = get_f(FONT_DESC)
+        f_l  = get_f(FONT_LABEL)
+        f_v  = get_f(FONT_VALUE, bold=True)
+        f_u  = get_f(FONT_UPDATE)
+        f_s  = get_f(FONT_SUN)
+        f_fd = get_f(FONT_FC_DAY, bold=True)
+        f_ft = get_f(FONT_FC_TMP, bold=True)
+        f_fc = get_f(FONT_FC_DSC)
 
-        mid_y = WIDGET_Y + WIDGET_HEIGHT // 2
-        y_top = WIDGET_Y + 30
-        y_bot = WIDGET_Y + WIDGET_HEIGHT - 30
+        mid_y  = WIDGET_Y + WIDGET_HEIGHT // 2
+        y_top  = WIDGET_Y + 30
+        y_bot  = WIDGET_Y + WIDGET_HEIGHT - 30
+        curr_x = OFFSET_LEFT + INNER_MARGIN
 
-        curr_x = OFFSET_LEFT + 60
-
-        # ───────────────────────────────────────────────────────────
-        # BAL BLOKK – ÓRIÁSI IKON + HŐFOK
-        # ───────────────────────────────────────────────────────────
-        icon_big = load_icon(today_icon_name, size=180)
-        if icon_big:
-            img.paste(icon_big, (curr_x, mid_y - 140), icon_big)
-
-        curr_x += 220
-
-        temp_txt = f"{temp}°C"
-        draw.text((curr_x, mid_y - 120), temp_txt, font=f_temp, fill=c_main)
-
-        temp_w = draw.textbbox((0, 0), temp_txt, font=f_temp)[2]
-
-        draw.text((curr_x, mid_y + 40), weather_hu, font=f_desc, fill=c_dim)
-
+        # ── SZEKCIÓ 1: MA (hőmérséklet + ikon + leírás) ────────────
         napok_hosszu = ["HÉTFŐ", "KEDD", "SZERDA", "CSÜTÖRTÖK", "PÉNTEK", "SZOMBAT", "VASÁRNAP"]
         mai_nap = napok_hosszu[local_now.weekday()]
-        draw.text((curr_x, mid_y + 90), mai_nap, font=f_day, fill=c_ter)
+        c_ghost = (200, 205, 215, 110)   # egy árnyalattal halványabb mint c_dim
 
-        curr_x += temp_w + 140
+        ma_w = draw.textbbox((0, 0), "MA", font=f_l)[2]
+        draw.text((curr_x,           mid_y - 105), "MA",    font=f_l, fill=c_dim)
+        draw.text((curr_x + ma_w + 10, mid_y - 105), mai_nap, font=f_l, fill=c_ghost)
+        temp_txt = f"{temp}°C"
+        draw.text((curr_x, mid_y - 88), temp_txt, font=f_t, fill=c_main)
+
+        temp_w = draw.textbbox((0, 0), temp_txt, font=f_t)[2]
+        icon_img = load_icon(today_icon_name)
+        if icon_img:
+            # a hőfok szöveg tetejétől számítva optikai közép, régi és új pozíció közepe
+            text_top = mid_y - 88
+            icon_y = text_top + 18   # kb. a régi és új közepe
+            img.paste(icon_img, (curr_x + temp_w + 18, icon_y), icon_img)
+
+        draw.text((curr_x, mid_y + 35), weather_hu, font=f_d, fill=c_dim)
+
+        curr_x += max(temp_w + 160, 270)
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
-        curr_x += 50
+        curr_x += 36
 
-        # ───────────────────────────────────────────────────────────
-        # KÖZÉPSŐ BLOKK – sunrise / sunset + 3 adat
-        # ───────────────────────────────────────────────────────────
-        SUN = 56
-        day_icon   = load_icon("day_clear",   size=SUN)
-        night_icon = load_icon("night_clear", size=SUN)
+        # ── SZEKCIÓ 2+3: NAPKELTE/NAPNYUGTA + ADATOK – két sor, egy blokk ──────────────────
+        LABEL_ICON_SIZE = 36
+        SUN_ICON_SIZE   = 36
 
-        # Sunrise
+        day_icon   = load_icon("day_clear",   size=SUN_ICON_SIZE)
+        night_icon = load_icon("night_clear", size=SUN_ICON_SIZE)
+
+        # Két sor magasságának kiszámítása, a blokk mid_y körül középre
+        val_h  = draw.textbbox((0, 0), "0°C", font=f_v)[3]
+        time_h = draw.textbbox((0, 0), "00:00", font=f_v)[3]
+        row_h  = max(LABEL_ICON_SIZE, val_h)
+        gap    = 14   # sorok közötti rés
+
+        # két sor összmagassága
+        block_h = row_h + gap + row_h
+        block_y = mid_y - block_h // 2   # blokk teteje
+
+        # 1. SOR: ☀️ 05:44  •  🌙 19:40  (felső)
+        sun_row_y   = block_y
+        sicon_y     = sun_row_y + (row_h - SUN_ICON_SIZE) // 2
+        stext_y     = sun_row_y + (row_h - time_h) // 2
+
+        sun_start_x = curr_x
+
         if day_icon:
-            img.paste(day_icon, (curr_x, mid_y - 120), day_icon)
-        draw.text((curr_x + SUN + 12, mid_y - 110), sunrise_str, font=f_val, fill=c_main)
+            img.paste(day_icon, (curr_x, sicon_y), day_icon)
+        sr_w = draw.textbbox((0, 0), sunrise_str, font=f_v)[2]
+        draw.text((curr_x + SUN_ICON_SIZE + 8, stext_y), sunrise_str, font=f_v, fill=c_main)
+        curr_x += SUN_ICON_SIZE + 8 + sr_w + 20
 
-        curr_x += 200
+        dot_w = draw.textbbox((0, 0), "•", font=f_v)[2]
+        draw.text((curr_x, stext_y), "•", font=f_v, fill=c_dim)
+        curr_x += dot_w + 20
 
-        # Sunset
         if night_icon:
-            img.paste(night_icon, (curr_x, mid_y - 120), night_icon)
-        draw.text((curr_x + SUN + 12, mid_y - 110), sunset_str, font=f_val, fill=c_main)
+            img.paste(night_icon, (curr_x, sicon_y), night_icon)
+        ss_w = draw.textbbox((0, 0), sunset_str, font=f_v)[2]
+        draw.text((curr_x + SUN_ICON_SIZE + 8, stext_y), sunset_str, font=f_v, fill=c_main)
+        sun_end_x = curr_x + SUN_ICON_SIZE + 8 + ss_w
 
-        curr_x += 240
-
-        # Alsó sor – wind / humidity / feels
+        # 2. SOR: 🌡️ 10°C  🌪️ 11km/h  💧 57%  (alsó, ugyanolyan szélességre igazítva)
         label_icons = [
+            ("feel",    f"{feels}°C"),
             ("tornado", f"{wind} km/h"),
             ("para",    f"{humidity}%"),
-            ("feel",    f"{feels}°C"),
         ]
-
-        rx = curr_x
+        # Előre kiszámítjuk a sor teljes szélességét hogy középre igazíthassuk
+        row2_total = 0
         for icon_name, val in label_icons:
-            ic = load_icon(icon_name, size=48)
-            if ic:
-                img.paste(ic, (rx, mid_y + 10), ic)
-            draw.text((rx + 60, mid_y + 18), val, font=f_val, fill=c_main)
-            rx += 200
+            val_w = draw.textbbox((0, 0), val, font=f_v)[2]
+            row2_total += LABEL_ICON_SIZE + 10 + val_w + 20
+        row2_total -= 30  # utolsó rés levonása
 
-        curr_x = rx + 40
+        sun_width   = sun_end_x - sun_start_x
+        block_width = max(sun_width, row2_total)
+
+        # 2. sor bal széle úgy hogy középre essen a napkelte sorhoz képest
+        row2_x = sun_start_x + (sun_width - row2_total) // 2
+        row2_y = block_y + row_h + gap
+        icon_oy = row2_y + (row_h - LABEL_ICON_SIZE) // 2
+        text_oy = row2_y + (row_h - val_h) // 2
+
+        rx = row2_x
+        for icon_name, val in label_icons:
+            lbl_icon = load_icon(icon_name, size=LABEL_ICON_SIZE)
+            if lbl_icon:
+                img.paste(lbl_icon, (rx, icon_oy), lbl_icon)
+            val_w = draw.textbbox((0, 0), val, font=f_v)[2]
+            draw.text((rx + LABEL_ICON_SIZE + 10, text_oy), val, font=f_v, fill=c_main)
+            rx += LABEL_ICON_SIZE + 10 + val_w + 20
+
+        # block_width = a két sor közül a szélesebb, curr_x a napsütötte sor vége alapján
+        curr_x = max(sun_end_x, row2_x + row2_total) + 20
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
-        curr_x += 50
+        curr_x += 36
 
-        # ───────────────────────────────────────────────────────────
-        # JOBB BLOKK – 4 nap előrejelzés
-        # ───────────────────────────────────────────────────────────
-        tz = timezone(timedelta(seconds=tz_offset))
-        today_date = datetime.now(tz).date()
-
+        # ── SZEKCIÓ 4: ELŐREJELZÉS ───────────────────────────────────
+        # Layout: nap neve FELÜL (nagy), ikon középen, hőfok + leírás ALUL (kicsi)
+        napok = ["HÉ", "KE", "SZE", "CS", "PÉ", "SZO", "VA"]
         seen_days = set()
-        fc_entries = []
+        count = 0
+        today_date = datetime.now().date()
 
+        fc_entries = []
         for entry in f_resp['list']:
             dt = datetime.fromtimestamp(entry['dt'], tz=tz)
             if dt.date() > today_date and dt.date() not in seen_days:
@@ -315,6 +352,7 @@ def main():
             if len(fc_entries) == 4:
                 break
 
+        # Ha valamelyik napra nem volt 11 utáni adat, vegyük a legközelebbit
         if len(fc_entries) < 4:
             seen_days2 = set(e[0].date() for e in fc_entries)
             for entry in f_resp['list']:
@@ -326,48 +364,58 @@ def main():
                     break
             fc_entries.sort(key=lambda x: x[0])
 
+        fc_start_x = curr_x
+
+        widget_right = OFFSET_LEFT + WIDGET_WIDTH - INNER_MARGIN
+        upd1_w = draw.textbbox((0, 0), "FRISSÍTVE", font=f_u)[2]
+        upd2_w = draw.textbbox((0, 0), "00:00", font=f_u)[2]
+        upd_reserved = max(upd1_w, upd2_w) + 50
+        fc_available = widget_right - upd_reserved - fc_start_x
+        fc_col_w = min(FC_COL_WIDTH, fc_available // 4)
+
         for dt, entry in fc_entries[:4]:
-            d_name = ["HÉ", "KE", "SZE", "CS", "PÉ", "SZO", "VA"][dt.weekday()]
+            d_name = napok[dt.weekday()]
             f_id   = entry['weather'][0]['id']
             f_temp = f"{round(entry['main']['temp'])}°C"
             f_desc = get_forecast_hu(f_id)
 
-            cx = curr_x + FC_COL_WIDTH // 2
+            col_cx = curr_x + fc_col_w // 2
 
-            # Nap neve
-            w = draw.textbbox((0, 0), d_name, font=f_fc_d)[2]
-            draw.text((cx - w // 2, y_top + 10), d_name, font=f_fc_d, fill=c_main)
+            # NAP NEVE – felső sor
+            day_w = draw.textbbox((0, 0), d_name, font=f_fd)[2]
+            draw.text((col_cx - day_w // 2, y_top + 2), d_name, font=f_fd, fill=c_main)
 
-            # Ikon
-            ic = load_icon(get_icon_name(f_id, False), size=FC_ICON_SIZE)
-            if ic:
-                img.paste(ic, (cx - FC_ICON_SIZE // 2, mid_y - 40), ic)
+            # IKON – középre
+            f_icon = load_icon(get_icon_name(f_id, False), size=FC_ICON_SIZE)
+            if f_icon:
+                icon_x = col_cx - FC_ICON_SIZE // 2
+                icon_y = mid_y - FC_ICON_SIZE // 2 - 8
+                img.paste(f_icon, (icon_x, icon_y), f_icon)
 
-            # Hőfok
-            tw = draw.textbbox((0, 0), f_temp, font=f_fc_t)[2]
-            draw.text((cx - tw // 2, y_bot - 80), f_temp, font=f_fc_t, fill=c_main)
+            # HŐFOK – alsó sor
+            tmp_w = draw.textbbox((0, 0), f_temp, font=f_ft)[2]
+            draw.text((col_cx - tmp_w // 2, y_bot - 58), f_temp, font=f_ft, fill=c_main)
 
-            # Leírás
-            dw = draw.textbbox((0, 0), f_desc, font=f_fc_s)[2]
-            draw.text((cx - dw // 2, y_bot - 40), f_desc, font=f_fc_s, fill=c_dim)
+            # LEÍRÁS – legalsó sor
+            dsc_w = draw.textbbox((0, 0), f_desc, font=f_fc)[2]
+            draw.text((col_cx - dsc_w // 2, y_bot - 28), f_desc, font=f_fc, fill=c_dim)
 
-            curr_x += FC_COL_WIDTH
+            curr_x += fc_col_w
 
-        # ───────────────────────────────────────────────────────────
-        # FRISSÍTVE
-        # ───────────────────────────────────────────────────────────
+        # ── SZEKCIÓ 5: FRISSÍTVE – jobb szélhez rögzítve ────────────
         update_line1 = "FRISSÍTVE"
         update_line2 = local_now.strftime("%H:%M")
+        upd1_w = draw.textbbox((0, 0), update_line1, font=f_u)[2]
+        upd2_w = draw.textbbox((0, 0), update_line2, font=f_u)[2]
+        upd_text_w = max(upd1_w, upd2_w)
+        upd_x = widget_right - upd_text_w
 
-        upd_w = max(
-            draw.textbbox((0, 0), update_line1, font=f_upd)[2],
-            draw.textbbox((0, 0), update_line2, font=f_upd)[2]
-        )
+        # Elválasztó mindig megjelenik, fix pozícióban a szöveg előtt
+        div_x = upd_x - 40
+        draw_divider(draw, div_x, y_top, y_bot, c_div)
 
-        upd_x = OFFSET_LEFT + WIDGET_WIDTH - upd_w - 40
-
-        draw.text((upd_x, mid_y + 40), update_line1, font=f_upd, fill=c_dim)
-        draw.text((upd_x, mid_y + 70), update_line2, font=f_upd, fill=c_main)
+        draw.text((upd_x, mid_y - 28), update_line1, font=f_u, fill=c_dim)
+        draw.text((upd_x, mid_y +  4), update_line2, font=f_u, fill=c_main)
 
         # ── MENTÉS ───────────────────────────────────────────────────
         os.makedirs("images", exist_ok=True)
@@ -394,3 +442,6 @@ def main():
         import traceback
         print(f"[HIBA] {e}")
         traceback.print_exc()
+
+if __name__ == "__main__":
+    main()
