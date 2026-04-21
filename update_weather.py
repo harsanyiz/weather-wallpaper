@@ -246,11 +246,11 @@ def main():
         draw.text((curr_x, mid_y - 88), temp_txt, font=f_t, fill=c_main)
 
         temp_w = draw.textbbox((0, 0), temp_txt, font=f_t)[2]
-        temp_h = draw.textbbox((0, 0), temp_txt, font=f_t)[3]
         icon_img = load_icon(today_icon_name)
         if icon_img:
-            # függőlegesen a hőfok közepéhez igazítva, pár pixellel feljebb
-            icon_y = (mid_y - 88) + (temp_h // 2) - (ICON_SIZE // 2) - 6
+            # a hőfok szöveg tetejétől számítva optikai közép, régi és új pozíció közepe
+            text_top = mid_y - 88
+            icon_y = text_top + 18   # kb. a régi és új közepe
             img.paste(icon_img, (curr_x + temp_w + 18, icon_y), icon_img)
 
         draw.text((curr_x, mid_y + 35), weather_hu, font=f_d, fill=c_dim)
@@ -261,22 +261,14 @@ def main():
 
         # ── SZEKCIÓ 2: ADATOK (érzet / szél / pára) – ikonokkal ─────
         LABEL_ICON_SIZE = 36
-        def load_local_icon(filename, size=LABEL_ICON_SIZE):
-            path = f"images/{filename}"
-            try:
-                ic = Image.open(path).convert("RGBA")
-                return ic.resize((size, size), Image.Resampling.LANCZOS)
-            except Exception as e:
-                print(f"  [local icon] {path} – {e}")
-                return None
 
         label_icons = [
-            ("feel.png",    f"{feels}°C"),
-            ("tornado.png", f"{wind} km/h"),
-            ("para.png",    f"{humidity}%"),
+            ("feel",    f"{feels}°C"),
+            ("tornado", f"{wind} km/h"),
+            ("para",    f"{humidity}%"),
         ]
-        for icon_file, val in label_icons:
-            lbl_icon = load_local_icon(icon_file)
+        for icon_name, val in label_icons:
+            lbl_icon = load_icon(icon_name, size=LABEL_ICON_SIZE)
             if lbl_icon:
                 img.paste(lbl_icon, (curr_x, mid_y - 52), lbl_icon)
             draw.text((curr_x, mid_y + 5), val, font=f_v, fill=c_main)
@@ -287,8 +279,8 @@ def main():
 
         # ── SZEKCIÓ 3: NAPKELTE / NAPNYUGTA – ikonokkal ──────────────
         SUN_ICON_SIZE = 36
-        day_icon   = load_local_icon("Day_clear.png",   size=SUN_ICON_SIZE)
-        night_icon = load_local_icon("night_clear.png", size=SUN_ICON_SIZE)
+        day_icon   = load_icon("day_clear",   size=SUN_ICON_SIZE)
+        night_icon = load_icon("night_clear", size=SUN_ICON_SIZE)
 
         sun_y_icon = mid_y - 52
         sun_y_val  = mid_y + 5
@@ -369,14 +361,21 @@ def main():
 
             curr_x += FC_COL_WIDTH
 
-        draw_divider(draw, curr_x + 10, y_top, y_bot, c_div)
-        curr_x += 46
-
-        # ── SZEKCIÓ 5: FRISSÍTVE ─────────────────────────────────────
+        # ── SZEKCIÓ 5: FRISSÍTVE – jobb szélhez rögzítve ────────────
+        # A widget jobb széle: OFFSET_LEFT + WIDGET_WIDTH - INNER_MARGIN
+        widget_right = OFFSET_LEFT + WIDGET_WIDTH - INNER_MARGIN
         update_line1 = "FRISSÍTVE"
         update_line2 = local_now.strftime("%H:%M")
-        draw.text((curr_x + 10, mid_y - 28), update_line1, font=f_u, fill=c_dim)
-        draw.text((curr_x + 10, mid_y +  4), update_line2, font=f_u, fill=c_main)
+        upd1_w = draw.textbbox((0, 0), update_line1, font=f_u)[2]
+        upd2_w = draw.textbbox((0, 0), update_line2, font=f_u)[2]
+        upd_x = widget_right - max(upd1_w, upd2_w)
+
+        # Elválasztó csak ha van hely
+        if upd_x > curr_x + 20:
+            draw_divider(draw, upd_x - 30, y_top, y_bot, c_div)
+
+        draw.text((upd_x, mid_y - 28), update_line1, font=f_u, fill=c_dim)
+        draw.text((upd_x, mid_y +  4), update_line2, font=f_u, fill=c_main)
 
         # ── MENTÉS ───────────────────────────────────────────────────
         os.makedirs("images", exist_ok=True)
