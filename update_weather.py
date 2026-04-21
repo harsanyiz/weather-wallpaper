@@ -14,7 +14,7 @@ BRANCH = "main"
 BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}"
 
 # ============================================================
-# KONFIGURÁCIÓ
+# KONFIGURÁCIÓ - BALRA IGAZÍTVA
 # ============================================================
 CITY = "Budapest"
 
@@ -22,13 +22,13 @@ CITY = "Budapest"
 SCREEN_W = 3840
 SCREEN_H = 2160
 
-# Widget pozíció - FELÜLRE
-WIDGET_WIDTH = 3400
-WIDGET_HEIGHT = 260
-WIDGET_X = (SCREEN_W - WIDGET_WIDTH) // 2
+# Widget - BALRA IGAZÍTVA, KISEBB SZÉLESSÉG
+WIDGET_WIDTH = 2600          # Változtatva: 3400 -> 2600
+WIDGET_HEIGHT = 280          # Kicsit magasabb
+WIDGET_X = 80                # Változtatva: középről balra
 WIDGET_Y = 60
 
-# Belső margók
+# Belső margók - NAGYOBB az összecsúszás ellen
 INNER_MARGIN = 60
 
 # Ikon méretek
@@ -318,7 +318,6 @@ def main():
         # ======================= SZEKCIÓ 2: NAPKELTE + SZÉL/PÁRA =======================
         mid_block_width = 480
         
-        # Napkelte ikon
         day_icon = load_icon("day_clear", size=SUN_ICON_SIZE)
         night_icon = load_icon("night_clear", size=SUN_ICON_SIZE)
         
@@ -338,7 +337,6 @@ def main():
             img.paste(night_icon, (rx, mid_y - 28), night_icon)
         draw.text((rx + SUN_ICON_SIZE + 8, mid_y - 28), sunset_str, font=f_s, fill=c_main)
         
-        # Szél és pára
         wind_icon = load_icon("tornado", size=WIND_ICON_SIZE)
         hum_icon = load_icon("para", size=HUM_ICON_SIZE)
         
@@ -437,6 +435,10 @@ def main():
         os.makedirs("images", exist_ok=True)
         img.convert("RGB").save("images/current.jpg", "JPEG", quality=95)
         print(f"[OK] images/current.jpg ({local_now.strftime('%H:%M')})")
+        
+        # Kép megnyitása Windows-on
+        if os.name == 'nt':
+            os.startfile(os.path.abspath("images/current.jpg"))
         
         v_param = int(time.time())
         image_url = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images/current.jpg?v={v_param}"
