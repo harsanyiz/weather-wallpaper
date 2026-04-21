@@ -246,9 +246,12 @@ def main():
         draw.text((curr_x, mid_y - 88), temp_txt, font=f_t, fill=c_main)
 
         temp_w = draw.textbbox((0, 0), temp_txt, font=f_t)[2]
+        temp_h = draw.textbbox((0, 0), temp_txt, font=f_t)[3]
         icon_img = load_icon(today_icon_name)
         if icon_img:
-            img.paste(icon_img, (curr_x + temp_w + 18, mid_y - 50), icon_img)
+            # függőlegesen a hőfok közepéhez igazítva, pár pixellel feljebb
+            icon_y = (mid_y - 88) + (temp_h // 2) - (ICON_SIZE // 2) - 6
+            img.paste(icon_img, (curr_x + temp_w + 18, icon_y), icon_img)
 
         draw.text((curr_x, mid_y + 35), weather_hu, font=f_d, fill=c_dim)
 
@@ -256,19 +259,52 @@ def main():
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
         curr_x += 36
 
-        # ── SZEKCIÓ 2: ADATOK (érzet / szél / pára) ─────────────────
-        for label, val in [("ÉRZET", f"{feels}°C"), ("SZÉL", f"{wind} km/h"), ("PÁRA", f"{humidity}%")]:
-            draw.text((curr_x, mid_y - 50), label, font=f_l, fill=c_dim)
-            draw.text((curr_x, mid_y +  5), val,   font=f_v, fill=c_main)
+        # ── SZEKCIÓ 2: ADATOK (érzet / szél / pára) – ikonokkal ─────
+        LABEL_ICON_SIZE = 36
+        def load_local_icon(filename, size=LABEL_ICON_SIZE):
+            path = f"images/{filename}"
+            try:
+                ic = Image.open(path).convert("RGBA")
+                return ic.resize((size, size), Image.Resampling.LANCZOS)
+            except Exception as e:
+                print(f"  [local icon] {path} – {e}")
+                return None
+
+        label_icons = [
+            ("feel.png",    f"{feels}°C"),
+            ("tornado.png", f"{wind} km/h"),
+            ("para.png",    f"{humidity}%"),
+        ]
+        for icon_file, val in label_icons:
+            lbl_icon = load_local_icon(icon_file)
+            if lbl_icon:
+                img.paste(lbl_icon, (curr_x, mid_y - 52), lbl_icon)
+            draw.text((curr_x, mid_y + 5), val, font=f_v, fill=c_main)
             curr_x += 185
 
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
         curr_x += 36
 
-        # ── SZEKCIÓ 3: NAPKELTE / NAPNYUGTA ─────────────────────────
-        draw.text((curr_x, mid_y - 50), "NAPKELTE / NAPNYUGTA", font=f_s, fill=c_dim)
-        draw.text((curr_x, mid_y +  5), f"{sunrise_str}  •  {sunset_str}", font=f_v, fill=c_main)
-        curr_x += 300
+        # ── SZEKCIÓ 3: NAPKELTE / NAPNYUGTA – ikonokkal ──────────────
+        SUN_ICON_SIZE = 36
+        day_icon   = load_local_icon("Day_clear.png",   size=SUN_ICON_SIZE)
+        night_icon = load_local_icon("night_clear.png", size=SUN_ICON_SIZE)
+
+        sun_y_icon = mid_y - 52
+        sun_y_val  = mid_y + 5
+
+        if day_icon:
+            img.paste(day_icon, (curr_x, sun_y_icon), day_icon)
+        draw.text((curr_x + SUN_ICON_SIZE + 8, sun_y_val), sunrise_str, font=f_v, fill=c_main)
+        curr_x += SUN_ICON_SIZE + 8 + draw.textbbox((0, 0), sunrise_str, font=f_v)[2] + 20
+
+        draw.text((curr_x, sun_y_val), "•", font=f_v, fill=c_dim)
+        curr_x += draw.textbbox((0, 0), "• ", font=f_v)[2] + 12
+
+        if night_icon:
+            img.paste(night_icon, (curr_x, sun_y_icon), night_icon)
+        draw.text((curr_x + SUN_ICON_SIZE + 8, sun_y_val), sunset_str, font=f_v, fill=c_main)
+        curr_x += SUN_ICON_SIZE + 8 + draw.textbbox((0, 0), sunset_str, font=f_v)[2] + 20
 
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
         curr_x += 36
