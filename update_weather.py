@@ -37,6 +37,7 @@ FONT_SUN    = 20
 FONT_FC_DAY = 28   # nap neve (felül)
 FONT_FC_TMP = 30   # hőmérséklet (alul)
 FONT_FC_DSC = 20   # leírás (alul, kicsi)
+FONT_NAMEDAY = 18  # névnapokhoz (kisebb, mert másodlagos info)
 # ============================================================
 
 # ---- Háttérkép mapping ----
@@ -178,8 +179,56 @@ def draw_divider(draw, x, y_top, y_bot, color):
     for dx in [0, 3]:
         draw.line([(x + dx, y_top), (x + dx, y_bot)], fill=color, width=1)
 
+def load_namedays():
+    """Betölti a névnapokat a Data/Magyarnevnapok.ics fájlból."""
+    namedays = {}
+    ics_path = "Data/Magyarnevnapok.ics"
+    
+    if not os.path.exists(ics_path):
+        print(f"[WARN] Névnap fájl nem található: {ics_path}")
+        return namedays
+    
+    try:
+        with open(ics_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        # Egyszerű .ics parser – keressük a VEVENT blokkokat
+        lines = content.split("\n")
+        current_date = None
+        
+        for i, line in enumerate(lines):
+            line = line.strip()
+            
+            # DTSTART sor: DTSTART;VALUE=DATE:20250102
+            if line.startswith("DTSTART"):
+                # Kivonjuk a dátumot (YYYYMMDD)
+                if ":" in line:
+                    date_part = line.split(":")[1]
+                    if len(date_part) >= 8:
+                        month = date_part[4:6]
+                        day = date_part[6:8]
+                        current_date = f"{month}-{day}"
+            
+            # SUMMARY sor – a névnapok itt vannak
+            elif line.startswith("SUMMARY") and current_date:
+                summary = line.split(":", 1)[1] if ":" in line else ""
+                # Csak akkor mentsük, ha van tartalom
+                if summary and summary not in ["Névnap", ""]:
+                    namedays[current_date] = summary
+                    current_date = None  # reset, hogy ne keveredjen
+        
+        print(f"[OK] Névnapok betöltve: {len(namedays)} nap")
+        
+    except Exception as e:
+        print(f"[WARN] Névnap betöltési hiba: {e}")
+    
+    return namedays
+
 def main():
     try:
+        # ── 0. NÉVNAPOK BETÖLTÉSE ───────────────────────────────────
+        NAMEDAYS = load_namedays()
+        
         # ── 1. ADATOK ──────────────────────────────────────────────
         resp   = requests.get(
             f"https://api.openweathermap.org/data/2.5/weather"
@@ -208,6 +257,14 @@ def main():
         sunset_str  = datetime.fromtimestamp(resp["sys"]["sunset"],  tz=tz).strftime("%H:%M")
         local_now   = datetime.now(tz)
 
+        # ── MAI NÉVNAPOK ───────────────────────────────────────────
+        today_str = local_now.strftime("%m-%d")
+        nameday_text = NAMEDAYS.get(today_str, "")
+        # Formázás: vesszők után szóköz
+        if nameday_text:
+            nameday_text = nameday_text.replace(",", ", ")
+        print(f"[INFO] Mai névnap: {nameday_text if nameday_text else 'nincs'}")
+
         # ── 2. ALAP: HÁTTÉRKÉP (időjárás + napszak) ────────────────
         img = load_bg(weather_id, is_night)
 
@@ -228,6 +285,7 @@ def main():
         f_fd = get_f(FONT_FC_DAY, bold=True)
         f_ft = get_f(FONT_FC_TMP, bold=True)
         f_fc = get_f(FONT_FC_DSC)
+        f_n  = get_f(FONT_NAMEDAY)  # névnap betűtípus
 
         mid_y  = WIDGET_Y + WIDGET_HEIGHT // 2
         y_top  = WIDGET_Y + 30
@@ -369,7 +427,8 @@ def main():
         widget_right = OFFSET_LEFT + WIDGET_WIDTH - INNER_MARGIN
         upd1_w = draw.textbbox((0, 0), "FRISSÍTVE", font=f_u)[2]
         upd2_w = draw.textbbox((0, 0), "00:00", font=f_u)[2]
-        upd_reserved = max(upd1_w, upd2_w) + 50
+        nameday_w = draw.textbbox((0, 0), nameday_text, font=f_n)[2] if nameday_text else 0
+        upd_reserved = max(upd1_w, upd2_w, nameday_w) + 50
         fc_available = widget_right - upd_reserved - fc_start_x
         fc_col_w = min(FC_COL_WIDTH, fc_available // 4)
 
@@ -402,17 +461,30 @@ def main():
 
             curr_x += fc_col_w
 
-        # ── SZEKCIÓ 5: FRISSÍTVE – jobb szélhez rögzítve ────────────
+        # ── SZEKCIÓ 5: FRISSÍTVE + NÉVNAPOK – jobb szélhez rögzítve ────────────
         update_line1 = "FRISSÍTVE"
         update_line2 = local_now.strftime("%H:%M")
         upd1_w = draw.textbbox((0, 0), update_line1, font=f_u)[2]
         upd2_w = draw.textbbox((0, 0), update_line2, font=f_u)[2]
         upd_text_w = max(upd1_w, upd2_w)
-        upd_x = widget_right - upd_text_w
+        
+        # Névnap szöveg szélessége
+        if nameday_text:
+            nameday_w = draw.textbbox((0, 0), nameday_text, font=f_n)[2]
+        else:
+            nameday_w = 0
+        
+        max_text_w = max(upd_text_w, nameday_w)
+        upd_x = widget_right - max_text_w
 
         # Elválasztó mindig megjelenik, fix pozícióban a szöveg előtt
         div_x = upd_x - 40
         draw_divider(draw, div_x, y_top, y_bot, c_div)
+
+        # Névnapok – a FRISSÍTVE fölé (ha van)
+        if nameday_text:
+            # Kicsit feljebb, mint a FRISSÍTVE
+            draw.text((upd_x, mid_y - 48), nameday_text, font=f_n, fill=c_dim)
 
         draw.text((upd_x, mid_y - 28), update_line1, font=f_u, fill=c_dim)
         draw.text((upd_x, mid_y +  4), update_line2, font=f_u, fill=c_main)
