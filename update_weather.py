@@ -299,24 +299,25 @@ def main():
         temp_txt = f"{temp}°C"
         draw.text((curr_x, mid_y - 88), temp_txt, font=f_t, fill=c_main)
 
-        # Érzet: BORULT után ikon + szám (érzet szöveg nélkül)
+        # Időjárás szöveg (BORULT, DERÜLT stb.)
+        weather_text = weather_hu  # pl. "BORULT"
+        draw.text((curr_x, mid_y + 5), weather_text, font=f_d, fill=c_dim)
+        
+        # Számoljuk a szélességét
+        weather_w = draw.textbbox((0, 0), weather_text, font=f_d)[2]
+        
+        # Érzet ikon + szám (az időjárás szöveg után)
         feels_icon = load_icon("feel", size=28)
         feels_temp = f"{feels}°C"
         
-        # 1. Kiírjuk az időjárás szöveget (BORULT, DERÜLT stb.)
-        draw.text((curr_x, mid_y + 5), weather_hu, font=f_d, fill=c_dim)
-        
-        # 2. Számoljuk a szélességét
-        weather_w = draw.textbbox((0, 0), weather_hu, font=f_d)[2]
-        
-        # 3. Ikon + szám kezdete (20px szóközzel)
+        # Ikon kezdete (20px szóközzel)
         feels_start_x = curr_x + weather_w + 20
         
-        # 4. Ikon
+        # Ikon
         if feels_icon:
             img.paste(feels_icon, (feels_start_x, mid_y + 6), feels_icon)
         
-        # 5. Szám az ikon után
+        # Szám az ikon után
         draw.text((feels_start_x + 32, mid_y + 5), feels_temp, font=f_d, fill=c_dim)
 
         temp_w = draw.textbbox((0, 0), temp_txt, font=f_t)[2]
