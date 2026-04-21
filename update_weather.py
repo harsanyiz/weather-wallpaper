@@ -1,165 +1,104 @@
-#!/usr/bin/env python3
-import os
-import sys
-import time
-import json
-import math
 import requests
-from io import BytesIO
+import json
+import os
+import time
+from datetime import datetime, timezone, timedelta
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageStat
 
-GITHUB_USER = "harsanyiz"
-GITHUB_REPO = "weather-wallpaper"
-BRANCH = "main"
-BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}"
-
-# ============================================================
-# KONFIGURÁCIÓ
-# ============================================================
-WIDGET_WIDTH  = 2200
-WIDGET_HEIGHT = 220
-WIDGET_Y      = 80
-OFFSET_LEFT   = 135
-INNER_MARGIN  = 80
-
-FONT_TEMP   = 90
-FONT_DESC   = 32
-FONT_LABEL  = 28
-FONT_VALUE  = 36
-FONT_UPDATE = 24
-FONT_SUN    = 22
-
-ICON_SIZE = 80  # px – a te ikonjaid 80x80-asok
-# ============================================================
-
-print("=== IDŐJÁRÁS WIDGET INDÍTÁSA ===")
-
-os.makedirs("images", exist_ok=True)
-
-# ----------------------------------------------------------------
-# SEGÉDFÜGGVÉNYEK
-# ----------------------------------------------------------------
-def find_font(bold=False):
-    paths = [
-        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf"    if bold else "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    ]
-    for p in paths:
-        if os.path.exists(p): return p
-    return None
+# Konfiguráció
+API_KEY = os.environ.get("OWM_API_KEY")
+CITY = "Budapest"
+WIDGET_Y, OFFSET_LEFT, INNER_MARGIN = 100, 135, 80
+ICON_SIZE = 80 
 
 def get_f(size, bold=False):
-    p = find_font(bold)
-    if p: return ImageFont.truetype(p, size)
-    return ImageFont.load_default()
-
-def get_text_colors(brightness):
-    if brightness > 145:
-        return {"main": (0,0,0,230), "dim": (0,0,0,140), "line": (0,0,0)}
-    return {"main": (255,255,255,255), "dim": (255,255,255,160), "line": (255,255,255)}
-
-def draw_glass_bar(img, bx, by, bw, bh):
-    region  = img.crop((bx, by, bx+bw, by+bh))
-    blurred = region.filter(ImageFilter.GaussianBlur(30))
-    mask    = Image.new("L", (bw, bh), 0)
-    ImageDraw.Draw(mask).rounded_rectangle((0, 0, bw, bh), radius=30, fill=180)
-    overlay = Image.new("RGBA", (bw, bh), (0, 0, 10, 100))
-    blurred = blurred.convert("RGBA")
-    blurred.putalpha(mask)
-    result  = Image.alpha_composite(blurred, overlay)
-    img.paste(result, (bx, by), result)
-    return img
-
-def draw_separator(img, x, y_top, y_bot, color_rgb, max_alpha=160, gap=4):
-    """Penge-szerű gradiens elválasztó – szinuszos alpha, dupla vonal."""
-    height = y_bot - y_top
-    pixels = img.load()
-    iw, ih = img.size
-    for i in range(height):
-        alpha = int(math.sin(i / height * math.pi) * max_alpha)
-        r, g, b = color_rgb
-        for dx in (0, gap):
-            px = x + dx
-            if 0 <= px < iw and 0 <= y_top + i < ih:
-                br, bg, bb, ba = img.getpixel((px, y_top + i))
-                a = alpha / 255.0
-                pixels[px, y_top + i] = (
-                    int(br*(1-a) + r*a),
-                    int(bg*(1-a) + g*a),
-                    int(bb*(1-a) + b*a),
-                    ba
-                )
-
-def load_icon(name):
-    """Ikon betöltése a TE ICONS_PNG80 mappádból (.jpg kiterjesztéssel)"""
-    # A te mappádban .jpg van, nem .png
-    url = f"{BASE_URL}/images/ICONS_PNG80/{name}.jpg"
-    try:
-        r = requests.get(url, timeout=10)
-        if r.status_code == 200:
-            icon = Image.open(BytesIO(r.content)).convert("RGBA")
-            # Ha nem pont 80x80, resize-oljuk
-            if icon.size != (ICON_SIZE, ICON_SIZE):
-                icon = icon.resize((ICON_SIZE, ICON_SIZE), Image.Resampling.LANCZOS)
-            print(f"✓ Ikon betöltve: {name}.jpg ({icon.size[0]}x{icon.size[1]})")
-            return icon
-    except Exception as e:
-        print(f"✗ Ikon hiba ({name}.jpg): {e}")
-    
-    # Fallback: ha nincs meg az ikon, próbálkozzunk a cloudy-val
-    if name != "cloudy_day" and name != "cloudy_night":
-        fallback = "cloudy_day" if "day" in name else "cloudy_night"
-        print(f"  → Fallback: {fallback}.jpg")
-        return load_icon(fallback)
-    return None
-
-def paste_icon(img, icon, cx, cy):
-    """Ikon beillesztése – cx/cy a középpont."""
-    if icon is None:
-        return
-    x = cx - ICON_SIZE // 2
-    y = cy - ICON_SIZE // 2
-    img.paste(icon, (x, y), icon)
+    path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    return ImageFont.truetype(path, size) if os.path.exists(path) else ImageFont.load_default()
 
 def get_icon_name(weather_id, is_night):
-    """Időjárás ID alapján ikon név a te mappádban"""
     suffix = "night" if is_night else "day"
-    
-    if weather_id in range(200, 233):
-        return f"hail_{suffix}"
-    if weather_id in [511, 611, 612, 613, 615, 616]:
-        return f"sleet_{suffix}"
-    if weather_id in range(500, 532):
-        return f"rainy_{suffix}"
-    if weather_id in range(600, 623):
-        return f"snow_{suffix}"
-    if weather_id in [701, 711, 721, 731, 741, 751, 761, 762]:
-        return f"foggy_{suffix}"
-    if weather_id == 800:
-        return f"sunny_{suffix}"
-    if weather_id in [801, 802, 803, 804]:
-        return f"cloudy_{suffix}"
+    if weather_id in range(200, 233): return f"rainy_{suffix}"
+    if weather_id in range(300, 532): return f"rainy_{suffix}"
+    if weather_id in [511, 611, 612, 613, 615, 616]: return f"sleet_{suffix}"
+    if weather_id in range(600, 623): return f"snow_{suffix}"
+    if weather_id in range(700, 782): return f"foggy_{suffix}"
+    if weather_id == 800: return f"sunny_{suffix}"
     return f"cloudy_{suffix}"
 
-# ----------------------------------------------------------------
-# HÁTTÉRKÉP BETÖLTÉSE (vagy generálása teszt esetén)
-# ----------------------------------------------------------------
-# Itt töltsd be a valós háttérképet, vagy generálj teszt hátteret
-# Ez a rész az eredeti update_weather.py-ból jön majd
+def load_local_icon(name):
+    """A hálózati letöltés helyett a helyi mappából olvassa be a 80x80-as PNG-t"""
+    path = f"images/ICONS_PNG80/{name}.png"
+    try:
+        if os.path.exists(path):
+            return Image.open(path).convert("RGBA")
+        else:
+            print(f"Hiba: Az ikon nem található: {path}")
+            return None
+    except Exception as e:
+        print(f"Hiba az ikon betöltésekor: {e}")
+        return None
 
-# ----------------------------------------------------------------
-# IDŐJÁRÁS ADATOK (ez majd az API-ból jön)
-# ----------------------------------------------------------------
-# Ez itt most csak TESZT adat
-weather_id = 802  # részben felhős
-is_night = False
-icon_name = get_icon_name(weather_id, is_night)
-print(f"Ikon keresés: {icon_name}.jpg")
+def main():
+    try:
+        resp = requests.get(f"https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric").json()
+        f_resp = requests.get(f"https://api.openweathermap.org/data/2.5/forecast?q={CITY}&appid={API_KEY}&units=metric").json()
+        
+        temp, weather_id = round(resp["main"]["temp"]), resp["weather"][0]["id"]
+        tz_offset = resp.get("timezone", 3600)
+        now_dt = datetime.now(timezone(timedelta(seconds=tz_offset)))
+        is_night = now_dt.timestamp() < resp["sys"]["sunrise"] or now_dt.timestamp() > resp["sys"]["sunset"]
+        
+        # Háttérkép betöltése
+        bg_name = get_icon_name(weather_id, is_night)
+        img = Image.open(f"images/{bg_name}.jpg").convert("RGB").resize((3840, 2160))
+        draw = ImageDraw.Draw(img, "RGBA")
+        
+        mid_y, curr_x = WIDGET_Y + 100, OFFSET_LEFT + INNER_MARGIN
+        colors = {"main": (255,255,255), "dim": (200,200,200), "line": (255,255,255,40)}
 
-# Ikon betöltése
-weather_icon = load_icon(icon_name)
+        # 1. FŐ IKON BEILLESZTÉSE (HELYI FÁJL!)
+        main_icon = load_local_icon(bg_name)
+        if main_icon:
+            img.paste(main_icon, (curr_x, mid_y - 40), main_icon)
+        
+        curr_x += 100
+        draw.text((curr_x, mid_y - 60), f"{temp}°C", font=get_f(90, True), fill=colors["main"])
+        
+        # Elválasztó és adatok
+        curr_x += 250
+        draw.line([(curr_x, WIDGET_Y + 40), (curr_x, WIDGET_Y + 160)], fill=colors["line"], width=3)
+        curr_x += 60
 
-# ----------------------------------------------------------------
-# GLASS BAR (a widget pozíciói az eredeti configból)
-# ----------------------------------------------------------------
-# Ez a rész is az eredeti update_weather.py-ból jön majd
+        # 2. ELŐREJELZÉS IKONOKKAL
+        forecast_list = []
+        seen_days = set()
+        for entry in f_resp['list']:
+            d = datetime.fromtimestamp(entry['dt']).date()
+            if d > now_dt.date() and d not in seen_days and datetime.fromtimestamp(entry['dt']).hour >= 12:
+                forecast_list.append(entry)
+                seen_days.add(d)
+            if len(forecast_list) == 3: break
+
+        for day in forecast_list:
+            f_icon_name = get_icon_name(day['weather'][0]['id'], False)
+            f_icon = load_local_icon(f_icon_name)
+            if f_icon:
+                # Kicsit kisebb ikon az előrejelzéshez
+                f_icon_small = f_icon.resize((60, 60), Image.Resampling.LANCZOS)
+                img.paste(f_icon_small, (curr_x, mid_y - 70), f_icon_small)
+            
+            draw.text((curr_x, mid_y), f"{round(day['main']['temp'])}°C", font=get_f(30, True), fill=colors["main"])
+            curr_x += 160
+
+        # Mentés
+        img.convert("RGB").save("images/current.jpg", "JPEG", quality=100, subsampling=0)
+        
+        # JSON frissítés a cache miatt
+        with open("weather.json", "w") as f:
+            json.dump([{"image_url": f"https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v={int(time.time())}"}], f)
+
+    except Exception as e:
+        print(f"Hiba: {e}")
+
+if __name__ == "__main__":
+    main()
