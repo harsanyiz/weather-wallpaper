@@ -1,0 +1,38 @@
+name: Test Overflight Images
+
+on:
+  workflow_dispatch:  # Csak manuálisan indítható
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install requests Pillow
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto fonts-noto-core
+      
+      - name: Run test (change this line to test different files)
+        run: python test_overflight.py   # <-- ITT ÁTÍRHATOD, HOGY MIT TESZTELSZ
+        env:
+          OWM_API_KEY: ${{ secrets.OWM_API_KEY }}
+      
+      - name: Commit and push test results
+        run: |
+          git config user.name "test-bot"
+          git config user.email "test@bot"
+          git add images/current.jpg weather.json
+          git commit -m "🧪 Test image $(date '+%Y-%m-%d %H:%M')" || echo "No changes to commit"
+          git push origin main
