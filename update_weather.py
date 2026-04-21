@@ -332,13 +332,20 @@ def main():
 
         fc_start_x = curr_x
 
+        widget_right = OFFSET_LEFT + WIDGET_WIDTH - INNER_MARGIN
+        upd1_w = draw.textbbox((0, 0), "FRISSÍTVE", font=f_u)[2]
+        upd2_w = draw.textbbox((0, 0), "00:00", font=f_u)[2]
+        upd_reserved = max(upd1_w, upd2_w) + 80
+        fc_available = widget_right - upd_reserved - fc_start_x
+        fc_col_w = min(FC_COL_WIDTH, fc_available // 4)
+
         for dt, entry in fc_entries[:4]:
             d_name = napok[dt.weekday()]
             f_id   = entry['weather'][0]['id']
             f_temp = f"{round(entry['main']['temp'])}°C"
             f_desc = get_forecast_hu(f_id)
 
-            col_cx = curr_x + FC_COL_WIDTH // 2
+            col_cx = curr_x + fc_col_w // 2
 
             # NAP NEVE – felső sor
             day_w = draw.textbbox((0, 0), d_name, font=f_fd)[2]
@@ -359,11 +366,9 @@ def main():
             dsc_w = draw.textbbox((0, 0), f_desc, font=f_fc)[2]
             draw.text((col_cx - dsc_w // 2, y_bot - 28), f_desc, font=f_fc, fill=c_dim)
 
-            curr_x += FC_COL_WIDTH
+            curr_x += fc_col_w
 
         # ── SZEKCIÓ 5: FRISSÍTVE – jobb szélhez rögzítve ────────────
-        # A widget jobb széle: OFFSET_LEFT + WIDGET_WIDTH - INNER_MARGIN
-        widget_right = OFFSET_LEFT + WIDGET_WIDTH - INNER_MARGIN
         update_line1 = "FRISSÍTVE"
         update_line2 = local_now.strftime("%H:%M")
         upd1_w = draw.textbbox((0, 0), update_line1, font=f_u)[2]
