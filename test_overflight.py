@@ -91,14 +91,13 @@ def draw_separator(img, x, y_top, y_bot, color_rgb, max_alpha=160, gap=4):
                 )
 
 def load_icon(name):
-    """PNG ikon letöltése a repóból, ICON_SIZE x ICON_SIZE RGBA."""
+    """PNG ikon letöltése a repóból – már 80x80 RGBA, nincs resize."""
     url = f"{BASE_URL}/images/PNG/{name}.png"
     try:
         r = requests.get(url, timeout=10)
         r.raise_for_status()
         icon = Image.open(BytesIO(r.content)).convert("RGBA")
-        icon = icon.resize((ICON_SIZE, ICON_SIZE), Image.Resampling.LANCZOS)
-        print(f"✓ Ikon betöltve: {name}.png → {ICON_SIZE}x{ICON_SIZE}")
+        print(f"✓ Ikon betöltve: {name}.png ({icon.size[0]}x{icon.size[1]})")
         return icon
     except Exception as e:
         print(f"✗ Ikon hiba ({name}): {e}")
