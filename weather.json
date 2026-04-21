@@ -1,9 +1,8 @@
 [
   {
-    "location": "TEST - Budapest",
-    "title": "ÓNOS ESŐ 26°C – 2026-04-21 10:24",
-    "author": "GitHub Action",
-    "url_img": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776767094591",
-    "image_url": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776767094591"
+    "location": "Budapest",
+    "title": "ESŐS 13°C",
+    "url_img": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776767586",
+    "image_url": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776767586"
   }
 ]
