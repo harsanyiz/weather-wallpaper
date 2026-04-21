@@ -29,12 +29,8 @@ FONT_LABEL  = 28
 FONT_VALUE  = 36
 FONT_UPDATE = 24
 FONT_SUN    = 22
-FONT_TIMESTAMP = 24
 ICON_SIZE   = 80
 # ============================================================
-
-# Ikon cache
-icon_cache = {}
 
 def find_font(bold=False):
     paths = [
@@ -58,59 +54,55 @@ def get_image_name(weather_id, is_night):
     else: return f"cloudy_{suffix}"
 
 def get_icon_name(weather_id, is_night):
-    """OWM weather_id → ikon fájlnév (a te ICONS_PNG80 mappádban lévő jpg-k alapján)"""
-    suffix = "night" if is_night else "day"
-    
-    # Zivatar / jégeső
+    """OWM weather_id → ICONS_PNG80 fájlnév mapping"""
+    # Zivatar
     if weather_id in range(200, 233):
-        return f"hail_{suffix}"
+        return "night_rain_thunder" if is_night else "day_rain_thunder"
+    # Szitálás
+    if weather_id in range(300, 322):
+        return "night_rain" if is_night else "day_rain"
     # Ónos eső / vegyes
     if weather_id in [511, 611, 612, 613, 615, 616]:
-        return f"sleet_{suffix}"
+        return "night_sleet" if is_night else "day_sleet"
     # Eső
     if weather_id in range(500, 532):
-        return f"rainy_{suffix}"
+        return "night_rain" if is_night else "day_rain"
     # Hó
     if weather_id in range(600, 623):
-        return f"snow_{suffix}"
-    # Köd / pára / füst
-    if weather_id in [701, 711, 721, 731, 741, 751, 761, 762]:
-        return f"foggy_{suffix}"
+        return "night_snow" if is_night else "day_snow"
+    # Köd / pára
+    if weather_id in [701, 711, 721, 741]:
+        return "mist"
+    if weather_id in [731, 751, 761, 762]:
+        return "fog"
+    # Tornádó / szél
+    if weather_id == 771: return "wind"
+    if weather_id == 781: return "tornado"
     # Derült
     if weather_id == 800:
-        return f"sunny_{suffix}"
-    # Felhős (801-804)
-    if weather_id in [801, 802, 803, 804]:
-        return f"cloudy_{suffix}"
-    
-    # Alapértelmezett
-    return f"cloudy_{suffix}"
+        return "night_clear" if is_night else "day_clear"
+    # Pár felhő
+    if weather_id == 801:
+        return "night_partial_cloud" if is_night else "day_partial_cloud"
+    # Felhős
+    if weather_id in [802, 803]:
+        return "night_partial_cloud" if is_night else "day_partial_cloud"
+    # Borult
+    if weather_id == 804:
+        return "overcast"
+    return "cloudy"
 
 def load_icon(name):
-    """Ikon betöltése cache-el - a te mappádban jpg-k vannak"""
-    if name in icon_cache and icon_cache[name] is not None:
-        return icon_cache[name]
-    
-    # A te fájljaid .jpg kiterjesztésűek
-    url = f"{BASE_URL}/ICONS_PNG80/{name}.jpg"
+    """PNG ikon letöltése a repóból – 80x80, nincs resize."""
+    url = f"{BASE_URL}/ICONS_PNG80/{name}.png"
     try:
         r = requests.get(url, timeout=10)
-        if r.status_code == 200:
-            icon = Image.open(BytesIO(r.content)).convert("RGBA")
-            icon = icon.resize((ICON_SIZE, ICON_SIZE), Image.Resampling.LANCZOS)
-            icon_cache[name] = icon
-            print(f"Ikon betöltve: {name}.jpg")
-            return icon
+        r.raise_for_status()
+        icon = Image.open(BytesIO(r.content)).convert("RGBA")
+        return icon
     except Exception as e:
-        print(f"Ikon hiba ({name}.jpg): {e}")
-    
-    # Fallback: próbálkozzunk egy alap ikonnal
-    if name != f"cloudy_{name.split('_')[-1]}":
-        fallback_name = f"cloudy_{name.split('_')[-1]}" if '_' in name else "cloudy_day"
-        return load_icon(fallback_name)
-    
-    icon_cache[name] = None
-    return None
+        print(f"Ikon hiba ({name}): {e}")
+        return None
 
 def paste_icon(img, icon, cx, cy):
     """Ikon beillesztése – cx/cy a középpont."""
@@ -138,11 +130,11 @@ def get_day_hu(date_obj):
 
 def get_text_colors(brightness):
     if brightness > 145:
-        return {"main": (0,0,0,230), "dim": (0,0,0,140), "line": (0,0,0,60), "blur": (0,0,0,80)}
-    return {"main": (255,255,255,255), "dim": (255,255,255,160), "line": (255,255,255,50), "blur": (0,0,0,120)}
+        return {"main": (0,0,0,230), "dim": (0,0,0,140), "line": (0,0,0), "blur": (0,0,0,80)}
+    return {"main": (255,255,255,255), "dim": (255,255,255,160), "line": (255,255,255), "blur": (0,0,0,120)}
 
 def draw_separator(img, x, y_top, y_bot, color_rgb, max_alpha=160, gap=4):
-    """Penge-szerű gradiens elválasztó"""
+    """Penge-szerű gradiens elválasztó: szinuszos alpha-görbe, két párhuzamos vonal."""
     height = y_bot - y_top
     pixels = img.load()
     iw, ih = img.size
@@ -163,7 +155,7 @@ def draw_separator(img, x, y_top, y_bot, color_rgb, max_alpha=160, gap=4):
                 )
 
 def draw_glass_bar(img, bx, by, bw, bh):
-    """Átlátszó blur sáv a widget mögött"""
+    """Felatszso blur sav a widget mogott"""
     region = img.crop((bx, by, bx + bw, by + bh))
     blurred = region.filter(ImageFilter.GaussianBlur(30))
     mask = Image.new("L", (bw, bh), 0)
@@ -193,7 +185,6 @@ def main():
         tz_offset  = resp.get("timezone", 3600)
         now_dt     = datetime.now(timezone(timedelta(seconds=tz_offset)))
         update_time = now_dt.strftime("%H:%M")
-        full_timestamp = now_dt.strftime("%Y-%m-%d %H:%M:%S")
         is_night   = now_dt.timestamp() < resp["sys"]["sunrise"] or now_dt.timestamp() > resp["sys"]["sunset"]
         image_name = get_image_name(weather_id, is_night)
         icon_name  = get_icon_name(weather_id, is_night)
@@ -211,8 +202,7 @@ def main():
                 seen_days.add(dt_obj.date())
             if len(forecast_list) == 3: break
     except Exception as e:
-        print(f"Hiba: {e}")
-        return
+        print(f"Hiba: {e}"); return
 
     src, dst = f"images/{image_name}.jpg", "images/current.jpg"
     img = Image.open(src).convert("RGB")
@@ -226,7 +216,6 @@ def main():
     bh = WIDGET_HEIGHT
 
     # Ikon betöltése
-    print(f"Ikon keresés: {icon_name}")
     weather_icon = load_icon(icon_name)
 
     img = img.convert("RGBA")
@@ -244,7 +233,6 @@ def main():
     f_v  = get_f(FONT_VALUE,  True)
     f_u  = get_f(FONT_UPDATE)
     f_s  = get_f(FONT_SUN)
-    f_ts = get_f(FONT_TIMESTAMP)
 
     curr_x = int(bx + INNER_MARGIN)
     mid_y  = int(by + bh // 2)
@@ -270,9 +258,9 @@ def main():
     draw.text((int(curr_x + (max_w - temp_w) / 2), int(mid_y - 62)), temp_txt, font=f_t, fill=colors["main"])
     draw.text((int(curr_x + (max_w - desc_w) / 2), int(mid_y + 38)), desc_txt, font=f_d, fill=colors["dim"])
 
-    # Ikon a hőfok jobb oldalán
-    paste_icon(img, weather_icon, int(curr_x + max_w + 35 + ICON_SIZE//2), mid_y - 10)
-    curr_x += int(max_w + 35 + ICON_SIZE + 25)
+    # Ikon a hőfok jobb oldalán, függőlegesen középre
+    paste_icon(img, weather_icon, int(curr_x + max_w + 30 + ICON_SIZE//2), mid_y - 10)
+    curr_x += int(max_w + 30 + ICON_SIZE + 20)
 
     sep()
 
@@ -316,6 +304,8 @@ def main():
         dw = draw.textbbox((0,0), f_desc, font=f_s)[2]
         col_w = max(nw, vw, dw)
 
+        # JAVÍTVA: mid_y - 48 (label fent) / mid_y + 2 (érték közép) / mid_y + 50 (leírás lent)
+        # — ugyanolyan ritmus mint az Érzet/Szél/Pára szekció
         draw.text((int(curr_x + (col_w-nw)/2), int(mid_y - 48)), d_name, font=f_l, fill=colors["dim"])
         draw.text((int(curr_x + (col_w-vw)/2), int(mid_y + 2)),  f_val,  font=f_v, fill=colors["main"])
         draw.text((int(curr_x + (col_w-dw)/2), int(mid_y + 50)), f_desc, font=f_s, fill=colors["dim"])
@@ -325,14 +315,6 @@ def main():
     sep()
     update_txt = f"FRISSÍTVE\n{update_time}"
     draw.text((curr_x + 20, int(mid_y - 30)), update_txt, font=f_u, fill=colors["dim"])
-
-    # ============================================================
-    # 6. IDŐBÉLYEG A KÉP ALJÁN
-    # ============================================================
-    timestamp_y = H - 40
-    timestamp_text = f"{full_timestamp}"
-    ts_w = draw.textbbox((0,0), timestamp_text, font=f_ts)[2]
-    draw.text((int((W - ts_w) / 2), timestamp_y), timestamp_text, font=f_ts, fill=colors["dim"])
 
     img.convert("RGB").save(dst, "JPEG", quality=100, subsampling=0)
 
