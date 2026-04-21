@@ -259,63 +259,78 @@ def main():
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
         curr_x += 36
 
-        # ── SZEKCIÓ 2: ADATOK (érzet / szél / pára) – ikon + érték egy sorban, középre ─────
+        # ── SZEKCIÓ 2+3: NAPKELTE/NAPNYUGTA + ADATOK – két sor, egy blokk ──────────────────
         LABEL_ICON_SIZE = 36
-        val_h   = draw.textbbox((0, 0), "0°C", font=f_v)[3]
-        # egy ikon+szöveg sor teljes magassága: ikon a szöveg optikai közepére igazítva
-        row_h   = max(LABEL_ICON_SIZE, val_h)
-        row_y   = mid_y - row_h // 2          # sor teteje (függőlegesen középre)
-        icon_oy = row_y + (row_h - LABEL_ICON_SIZE) // 2   # ikon y
-        text_oy = row_y + (row_h - val_h) // 2             # szöveg y
+        SUN_ICON_SIZE   = 36
 
+        day_icon   = load_icon("day_clear",   size=SUN_ICON_SIZE)
+        night_icon = load_icon("night_clear", size=SUN_ICON_SIZE)
+
+        # Két sor magasságának kiszámítása, a blokk mid_y körül középre
+        val_h  = draw.textbbox((0, 0), "0°C", font=f_v)[3]
+        time_h = draw.textbbox((0, 0), "00:00", font=f_v)[3]
+        row_h  = max(LABEL_ICON_SIZE, val_h)
+        gap    = 14   # sorok közötti rés
+
+        # két sor összmagassága
+        block_h = row_h + gap + row_h
+        block_y = mid_y - block_h // 2   # blokk teteje
+
+        # 1. SOR: ☀️ 05:44  •  🌙 19:40  (felső)
+        sun_row_y   = block_y
+        sicon_y     = sun_row_y + (row_h - SUN_ICON_SIZE) // 2
+        stext_y     = sun_row_y + (row_h - time_h) // 2
+
+        sun_start_x = curr_x
+
+        if day_icon:
+            img.paste(day_icon, (curr_x, sicon_y), day_icon)
+        sr_w = draw.textbbox((0, 0), sunrise_str, font=f_v)[2]
+        draw.text((curr_x + SUN_ICON_SIZE + 8, stext_y), sunrise_str, font=f_v, fill=c_main)
+        curr_x += SUN_ICON_SIZE + 8 + sr_w + 16
+
+        dot_w = draw.textbbox((0, 0), "•", font=f_v)[2]
+        draw.text((curr_x, stext_y), "•", font=f_v, fill=c_dim)
+        curr_x += dot_w + 16
+
+        if night_icon:
+            img.paste(night_icon, (curr_x, sicon_y), night_icon)
+        ss_w = draw.textbbox((0, 0), sunset_str, font=f_v)[2]
+        draw.text((curr_x + SUN_ICON_SIZE + 8, stext_y), sunset_str, font=f_v, fill=c_main)
+        sun_end_x = curr_x + SUN_ICON_SIZE + 8 + ss_w
+
+        # 2. SOR: 🌡️ 10°C  🌪️ 11km/h  💧 57%  (alsó, ugyanolyan szélességre igazítva)
         label_icons = [
             ("feel",    f"{feels}°C"),
             ("tornado", f"{wind} km/h"),
             ("para",    f"{humidity}%"),
         ]
+        # Előre kiszámítjuk a sor teljes szélességét hogy középre igazíthassuk
+        row2_total = 0
+        for icon_name, val in label_icons:
+            val_w = draw.textbbox((0, 0), val, font=f_v)[2]
+            row2_total += LABEL_ICON_SIZE + 10 + val_w + 30
+        row2_total -= 30  # utolsó rés levonása
+
+        sun_width   = sun_end_x - sun_start_x
+        block_width = max(sun_width, row2_total)
+
+        # 2. sor bal széle úgy hogy középre essen a napkelte sorhoz képest
+        row2_x = sun_start_x + (sun_width - row2_total) // 2
+        row2_y = block_y + row_h + gap
+        icon_oy = row2_y + (row_h - LABEL_ICON_SIZE) // 2
+        text_oy = row2_y + (row_h - val_h) // 2
+
+        rx = row2_x
         for icon_name, val in label_icons:
             lbl_icon = load_icon(icon_name, size=LABEL_ICON_SIZE)
             if lbl_icon:
-                img.paste(lbl_icon, (curr_x, icon_oy), lbl_icon)
-            val_x = curr_x + LABEL_ICON_SIZE + 10
-            draw.text((val_x, text_oy), val, font=f_v, fill=c_main)
+                img.paste(lbl_icon, (rx, icon_oy), lbl_icon)
             val_w = draw.textbbox((0, 0), val, font=f_v)[2]
-            curr_x += LABEL_ICON_SIZE + 10 + val_w + 30
+            draw.text((rx + LABEL_ICON_SIZE + 10, text_oy), val, font=f_v, fill=c_main)
+            rx += LABEL_ICON_SIZE + 10 + val_w + 30
 
-        draw_divider(draw, curr_x, y_top, y_bot, c_div)
-        curr_x += 36
-
-        # ── SZEKCIÓ 3: NAPKELTE / NAPNYUGTA – ikon + idő egy sorban, középre ──────────────
-        SUN_ICON_SIZE = 36
-        day_icon   = load_icon("day_clear",   size=SUN_ICON_SIZE)
-        night_icon = load_icon("night_clear", size=SUN_ICON_SIZE)
-
-        time_h  = draw.textbbox((0, 0), "00:00", font=f_v)[3]
-        srow_h  = max(SUN_ICON_SIZE, time_h)
-        srow_y  = mid_y - srow_h // 2
-        sicon_y = srow_y + (srow_h - SUN_ICON_SIZE) // 2
-        stext_y = srow_y + (srow_h - time_h) // 2
-
-        # napkelte
-        if day_icon:
-            img.paste(day_icon, (curr_x, sicon_y), day_icon)
-        sr_w = draw.textbbox((0, 0), sunrise_str, font=f_v)[2]
-        draw.text((curr_x + SUN_ICON_SIZE + 8, stext_y), sunrise_str, font=f_v, fill=c_main)
-        curr_x += SUN_ICON_SIZE + 8 + sr_w + 18
-
-        # elválasztó pont középre
-        dot_w = draw.textbbox((0, 0), "•", font=f_v)[2]
-        dot_y = srow_y + (srow_h - time_h) // 2
-        draw.text((curr_x, dot_y), "•", font=f_v, fill=c_dim)
-        curr_x += dot_w + 18
-
-        # napnyugta
-        if night_icon:
-            img.paste(night_icon, (curr_x, sicon_y), night_icon)
-        ss_w = draw.textbbox((0, 0), sunset_str, font=f_v)[2]
-        draw.text((curr_x + SUN_ICON_SIZE + 8, stext_y), sunset_str, font=f_v, fill=c_main)
-        curr_x += SUN_ICON_SIZE + 8 + ss_w + 20
-
+        curr_x = sun_start_x + block_width + 20
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
         curr_x += 36
 
