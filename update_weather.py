@@ -26,7 +26,7 @@ ICON_SIZE     = 80
 
 # Forecast panel méretek
 FC_ICON_SIZE  = 48   # kisebb ikon az előrejelzésnél
-FC_COL_WIDTH  = 110  # egy nap oszlopszélessége
+FC_COL_WIDTH  = 115  # egy nap oszlopszélessége
 
 FONT_TEMP   = 90
 FONT_DESC   = 30
@@ -287,11 +287,11 @@ def main():
             img.paste(day_icon, (curr_x, sicon_y), day_icon)
         sr_w = draw.textbbox((0, 0), sunrise_str, font=f_v)[2]
         draw.text((curr_x + SUN_ICON_SIZE + 8, stext_y), sunrise_str, font=f_v, fill=c_main)
-        curr_x += SUN_ICON_SIZE + 8 + sr_w + 28
+        curr_x += SUN_ICON_SIZE + 8 + sr_w + 20
 
         dot_w = draw.textbbox((0, 0), "•", font=f_v)[2]
         draw.text((curr_x, stext_y), "•", font=f_v, fill=c_dim)
-        curr_x += dot_w + 28
+        curr_x += dot_w + 20
 
         if night_icon:
             img.paste(night_icon, (curr_x, sicon_y), night_icon)
@@ -309,7 +309,7 @@ def main():
         row2_total = 0
         for icon_name, val in label_icons:
             val_w = draw.textbbox((0, 0), val, font=f_v)[2]
-            row2_total += LABEL_ICON_SIZE + 10 + val_w + 30
+            row2_total += LABEL_ICON_SIZE + 10 + val_w + 20
         row2_total -= 30  # utolsó rés levonása
 
         sun_width   = sun_end_x - sun_start_x
@@ -328,10 +328,10 @@ def main():
                 img.paste(lbl_icon, (rx, icon_oy), lbl_icon)
             val_w = draw.textbbox((0, 0), val, font=f_v)[2]
             draw.text((rx + LABEL_ICON_SIZE + 10, text_oy), val, font=f_v, fill=c_main)
-            rx += LABEL_ICON_SIZE + 10 + val_w + 30
+            rx += LABEL_ICON_SIZE + 10 + val_w + 20
 
         # block_width = a két sor közül a szélesebb, curr_x a napsütötte sor vége alapján
-        curr_x = max(sun_end_x, row2_x + row2_total) + 30
+        curr_x = max(sun_end_x, row2_x + row2_total) + 20
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
         curr_x += 36
 
