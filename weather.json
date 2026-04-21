@@ -1,9 +1,8 @@
 [
   {
     "location": "Budapest",
-    "title": "Felhős 12C",
-    "author": "OpenWeatherMap",
-    "image_url": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776768106",
-    "url_img": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776768106"
+    "title": "ERŐSEN FELHŐS 12°C",
+    "image_url": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776768306",
+    "url_img": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776768306"
   }
 ]
