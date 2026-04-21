@@ -1,24 +1,15 @@
 import requests
 import json
-from io import BytesIO
 import os
 import time
-import math
 from datetime import datetime, timezone, timedelta
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageStat
 
 # Konfiguráció
 API_KEY = os.environ.get("OWM_API_KEY")
-GITHUB_USER = "harsanyiz"
-GITHUB_REPO = "weather-wallpaper"
-BRANCH = "main"
-BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images"
-
 CITY = "Budapest"
-WIDGET_WIDTH, WIDGET_HEIGHT = 2200, 200
 WIDGET_Y, OFFSET_LEFT, INNER_MARGIN = 100, 135, 80
-FONT_TEMP, FONT_DESC, FONT_LABEL, FONT_VALUE, FONT_UPDATE = 90, 32, 28, 36, 24
-ICON_SIZE = 80 # A te stabil méreted
+ICON_SIZE = 80 
 
 def get_f(size, bold=False):
     path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
@@ -34,49 +25,51 @@ def get_icon_name(weather_id, is_night):
     if weather_id == 800: return f"sunny_{suffix}"
     return f"cloudy_{suffix}"
 
-def load_icon(name):
-    url = f"{BASE_URL}/ICONS_PNG80/{name}.png"
+def load_local_icon(name):
+    """A hálózati letöltés helyett a helyi mappából olvassa be a 80x80-as PNG-t"""
+    path = f"images/ICONS_PNG80/{name}.png"
     try:
-        r = requests.get(url, timeout=10)
-        return Image.open(BytesIO(r.content)).convert("RGBA")
-    except: return None
+        if os.path.exists(path):
+            return Image.open(path).convert("RGBA")
+        else:
+            print(f"Hiba: Az ikon nem található: {path}")
+            return None
+    except Exception as e:
+        print(f"Hiba az ikon betöltésekor: {e}")
+        return None
 
 def main():
     try:
         resp = requests.get(f"https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric").json()
         f_resp = requests.get(f"https://api.openweathermap.org/data/2.5/forecast?q={CITY}&appid={API_KEY}&units=metric").json()
+        
         temp, weather_id = round(resp["main"]["temp"]), resp["weather"][0]["id"]
         tz_offset = resp.get("timezone", 3600)
         now_dt = datetime.now(timezone(timedelta(seconds=tz_offset)))
         is_night = now_dt.timestamp() < resp["sys"]["sunrise"] or now_dt.timestamp() > resp["sys"]["sunset"]
         
-        main_icon_name = get_icon_name(weather_id, is_night)
-        img = Image.open(f"images/{main_icon_name}.jpg").convert("RGB").resize((3840, 2160))
+        # Háttérkép betöltése
+        bg_name = get_icon_name(weather_id, is_night)
+        img = Image.open(f"images/{bg_name}.jpg").convert("RGB").resize((3840, 2160))
         draw = ImageDraw.Draw(img, "RGBA")
         
-        # Színmeghatározás
+        mid_y, curr_x = WIDGET_Y + 100, OFFSET_LEFT + INNER_MARGIN
         colors = {"main": (255,255,255), "dim": (200,200,200), "line": (255,255,255,40)}
-        mid_y, curr_x = 100 + 100, 135 + 80
 
-        # 1. FŐ SZEKCIÓ: IKON + HŐFOK
-        main_icon = load_icon(main_icon_name)
-        if main_icon: img.paste(main_icon, (curr_x, mid_y - 40), main_icon)
+        # 1. FŐ IKON BEILLESZTÉSE (HELYI FÁJL!)
+        main_icon = load_local_icon(bg_name)
+        if main_icon:
+            img.paste(main_icon, (curr_x, mid_y - 40), main_icon)
         
         curr_x += 100
         draw.text((curr_x, mid_y - 60), f"{temp}°C", font=get_f(90, True), fill=colors["main"])
-        curr_x += 250
-        draw.line([(curr_x, 140), (curr_x, 260)], fill=colors["line"], width=3)
-        curr_x += 80
-
-        # 2. ADATOK
-        draw.text((curr_x, mid_y - 45), "ÉRZET", font=get_f(28), fill=colors["dim"])
-        draw.text((curr_x, mid_y), f"{round(resp['main']['feels_like'])}°C", font=get_f(36, True), fill=colors["main"])
-        curr_x += 200
-
-        # 3. ELŐREJELZÉS IKONOKKAL
-        draw.line([(curr_x, 140), (curr_x, 260)], fill=colors["line"], width=3)
-        curr_x += 60
         
+        # Elválasztó és adatok
+        curr_x += 250
+        draw.line([(curr_x, WIDGET_Y + 40), (curr_x, WIDGET_Y + 160)], fill=colors["line"], width=3)
+        curr_x += 60
+
+        # 2. ELŐREJELZÉS IKONOKKAL
         forecast_list = []
         seen_days = set()
         for entry in f_resp['list']:
@@ -88,23 +81,24 @@ def main():
 
         for day in forecast_list:
             f_icon_name = get_icon_name(day['weather'][0]['id'], False)
-            f_icon = load_icon(f_icon_name)
-            if f_icon: 
-                # Kicsinyített ikon az előrejelzéshez (60x60)
+            f_icon = load_local_icon(f_icon_name)
+            if f_icon:
+                # Kicsit kisebb ikon az előrejelzéshez
                 f_icon_small = f_icon.resize((60, 60), Image.Resampling.LANCZOS)
                 img.paste(f_icon_small, (curr_x, mid_y - 70), f_icon_small)
             
             draw.text((curr_x, mid_y), f"{round(day['main']['temp'])}°C", font=get_f(30, True), fill=colors["main"])
-            curr_x += 150
+            curr_x += 160
 
         # Mentés
-        img.save("images/current.jpg", "JPEG", quality=100, subsampling=0)
+        img.convert("RGB").save("images/current.jpg", "JPEG", quality=100, subsampling=0)
         
-        # JSON frissítés
+        # JSON frissítés a cache miatt
         with open("weather.json", "w") as f:
-            json.dump([{"image_url": f"{BASE_URL}/current.jpg?v={int(time.time())}"}], f)
+            json.dump([{"image_url": f"https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v={int(time.time())}"}], f)
 
-    except Exception as e: print(f"Hiba: {e}")
+    except Exception as e:
+        print(f"Hiba: {e}")
 
 if __name__ == "__main__":
     main()
