@@ -300,7 +300,7 @@ def main():
         draw.text((curr_x, mid_y - 88), temp_txt, font=f_t, fill=c_main)
 
         # Érzet a leírás mellé - ikon + szöveg
-        feels_icon = load_icon("thermometer", size=28)
+        feels_icon = load_icon("feel", size=28)
         feels_label = f"érzet: {feels}°C"
         feels_x = curr_x
         if feels_icon:
@@ -353,8 +353,8 @@ def main():
         
         # ── SZEKCIÓ 3: SZÉL + PÁRA (ikon + szöveg, középre) ─────────
         WIND_ICON_SIZE = 26
-        wind_icon = load_icon("wind", size=WIND_ICON_SIZE)
-        hum_icon  = load_icon("humidity", size=WIND_ICON_SIZE)
+        wind_icon = load_icon("tornado", size=WIND_ICON_SIZE)
+        hum_icon  = load_icon("para", size=WIND_ICON_SIZE)
 
         wind_label = f"{wind} km/h"
         hum_label  = f"{humidity}%"
