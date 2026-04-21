@@ -368,11 +368,12 @@ def main():
         update_line2 = local_now.strftime("%H:%M")
         upd1_w = draw.textbbox((0, 0), update_line1, font=f_u)[2]
         upd2_w = draw.textbbox((0, 0), update_line2, font=f_u)[2]
-        upd_x = widget_right - max(upd1_w, upd2_w)
+        upd_text_w = max(upd1_w, upd2_w)
+        upd_x = widget_right - upd_text_w
 
-        # Elválasztó csak ha van hely
-        if upd_x > curr_x + 20:
-            draw_divider(draw, upd_x - 30, y_top, y_bot, c_div)
+        # Elválasztó mindig megjelenik, fix pozícióban a szöveg előtt
+        div_x = upd_x - 40
+        draw_divider(draw, div_x, y_top, y_bot, c_div)
 
         draw.text((upd_x, mid_y - 28), update_line1, font=f_u, fill=c_dim)
         draw.text((upd_x, mid_y +  4), update_line2, font=f_u, fill=c_main)
