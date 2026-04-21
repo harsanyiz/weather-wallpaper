@@ -25,8 +25,8 @@ INNER_MARGIN  = 80
 ICON_SIZE     = 80
 
 # Forecast panel méretek
-FC_ICON_SIZE  = 56   # kisebb ikon az előrejelzésnél
-FC_COL_WIDTH  = 155  # egy nap oszlopszélessége
+FC_ICON_SIZE  = 48   # kisebb ikon az előrejelzésnél
+FC_COL_WIDTH  = 120  # egy nap oszlopszélessége
 
 FONT_TEMP   = 90
 FONT_DESC   = 30
@@ -330,7 +330,8 @@ def main():
             draw.text((rx + LABEL_ICON_SIZE + 10, text_oy), val, font=f_v, fill=c_main)
             rx += LABEL_ICON_SIZE + 10 + val_w + 30
 
-        curr_x = sun_start_x + block_width + 20
+        # block_width = a két sor közül a szélesebb, curr_x a napsütötte sor vége alapján
+        curr_x = max(sun_end_x, row2_x + row2_total) + 30
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
         curr_x += 36
 
