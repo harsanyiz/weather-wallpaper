@@ -34,6 +34,9 @@ INNER_MARGIN = 60
 # Ikon méretek
 ICON_SIZE = 80
 FC_ICON_SIZE = 52
+SUN_ICON_SIZE = 32
+WIND_ICON_SIZE = 28
+HUM_ICON_SIZE = 28
 
 # Betűméretek
 FONT_TEMP = 92
@@ -198,8 +201,7 @@ def draw_glass_bar(img, bx, by, bw, bh, blur=40, dark=80):
     return img
 
 def draw_divider(draw, x, y_top, y_bot, color):
-    for dx in [0, 2]:
-        draw.line([(x + dx, y_top), (x + dx, y_bot)], fill=color, width=1)
+    draw.line([(x, y_top), (x, y_bot)], fill=color, width=1)
 
 def load_namedays():
     namedays = {}
@@ -316,29 +318,52 @@ def main():
         # ======================= SZEKCIÓ 2: NAPKELTE + SZÉL/PÁRA =======================
         mid_block_width = 480
         
-        # Napkelte/Napnyugta
+        # Napkelte ikon
+        day_icon = load_icon("day_clear", size=SUN_ICON_SIZE)
+        night_icon = load_icon("night_clear", size=SUN_ICON_SIZE)
+        
         sr_w = draw.textbbox((0, 0), sunrise_str, font=f_s)[2]
         ss_w = draw.textbbox((0, 0), sunset_str, font=f_s)[2]
         
-        sun_total_w = sr_w + 40 + ss_w
+        sun_total_w = SUN_ICON_SIZE + 8 + sr_w + 40 + SUN_ICON_SIZE + 8 + ss_w
         sun_x = curr_x + (mid_block_width - sun_total_w) // 2
         
-        draw.text((sun_x, mid_y - 25), f"🌅 {sunrise_str}", font=f_s, fill=c_main)
-        draw.text((sun_x + sr_w + 40, mid_y - 25), f"🌇 {sunset_str}", font=f_s, fill=c_main)
+        rx = sun_x
+        if day_icon:
+            img.paste(day_icon, (rx, mid_y - 28), day_icon)
+        draw.text((rx + SUN_ICON_SIZE + 8, mid_y - 28), sunrise_str, font=f_s, fill=c_main)
+        rx += SUN_ICON_SIZE + 8 + sr_w + 40
         
-        # Szél
-        wind_text = f"💨 {wind} km/h"
-        hum_text = f"💧 {humidity}%"
+        if night_icon:
+            img.paste(night_icon, (rx, mid_y - 28), night_icon)
+        draw.text((rx + SUN_ICON_SIZE + 8, mid_y - 28), sunset_str, font=f_s, fill=c_main)
+        
+        # Szél és pára
+        wind_icon = load_icon("tornado", size=WIND_ICON_SIZE)
+        hum_icon = load_icon("para", size=HUM_ICON_SIZE)
+        
+        wind_text = f"{wind} km/h"
+        hum_text = f"{humidity}%"
+        
+        wind_ico_w = (WIND_ICON_SIZE + 8) if wind_icon else 0
+        hum_ico_w = (HUM_ICON_SIZE + 8) if hum_icon else 0
         
         wind_w = draw.textbbox((0, 0), wind_text, font=f_d)[2]
         hum_w = draw.textbbox((0, 0), hum_text, font=f_d)[2]
-        total_w2 = wind_w + 60 + hum_w
         
+        total_w2 = wind_ico_w + wind_w + 60 + hum_ico_w + hum_w
         info_x = curr_x + (mid_block_width - total_w2) // 2
-        row_y = mid_y + 25
+        row_y = mid_y + 28
         
-        draw.text((info_x, row_y), wind_text, font=f_d, fill=c_dim)
-        draw.text((info_x + wind_w + 60, row_y), hum_text, font=f_d, fill=c_dim)
+        wx = info_x
+        if wind_icon:
+            img.paste(wind_icon, (wx, row_y), wind_icon)
+        draw.text((wx + wind_ico_w, row_y), wind_text, font=f_d, fill=c_dim)
+        
+        hx = info_x + wind_ico_w + wind_w + 60
+        if hum_icon:
+            img.paste(hum_icon, (hx, row_y), hum_icon)
+        draw.text((hx + hum_ico_w, row_y), hum_text, font=f_d, fill=c_dim)
         
         curr_x += mid_block_width
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
@@ -359,7 +384,7 @@ def main():
             if len(fc_entries) == 4:
                 break
         
-        fc_col_w = 140
+        fc_col_w = 145
         for dt, entry in fc_entries[:4]:
             d_name = napok[dt.weekday()]
             f_id = entry['weather'][0]['id']
