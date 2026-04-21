@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Teljes history letöltése
       
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -21,28 +23,27 @@ jobs:
       - name: Install dependencies
         run: |
           pip install Pillow
-          python -c "import PIL; print(f'Pillow version: {PIL.__version__}')"
-      
-      - name: List files before test
-        run: |
-          echo "=== Fájlok a futás előtt ==="
-          ls -la images/ || echo "images mappa nem létezik"
       
       - name: Run test
         run: python test_overflight.py
       
-      - name: List files after test
-        run: |
-          echo "=== Fájlok a futás után ==="
-          ls -la images/
-          echo "=== current.jpg info ==="
-          file images/current.jpg || echo "current.jpg NEM LÉTEZIK!"
-      
-      - name: Commit and push
+      - name: Commit and push with merge handling
         run: |
           git config user.name "test-bot"
           git config user.email "test@bot"
-          git add images/current.jpg weather.json
-          git status
-          git commit -m "Test image $(date '+%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
-          git push origin main
+          
+          # Újra fetch és pull a legfrissebb változásokért
+          git fetch origin main
+          git pull --rebase origin main || echo "Pull issue, continuing..."
+          
+          # Hozzáadás
+          git add -f images/current.jpg
+          git add -f weather.json
+          
+          # Commit (ha van változás)
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🧪 Test image $(date '+%Y-%m-%d %H:%M:%S')"
+            git push origin main
+          fi
