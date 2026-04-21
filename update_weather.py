@@ -3,12 +3,10 @@ import requests
 import json
 import os
 import time
-import math
 from io import BytesIO
 from datetime import datetime, timezone, timedelta
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageStat
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
-# API kulcsot írd be ide vagy hagyd környezeti változóban
 API_KEY = os.environ.get("OWM_API_KEY")
 GITHUB_USER = "harsanyiz"
 GITHUB_REPO = "weather-wallpaper"
@@ -19,33 +17,92 @@ BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRAN
 # KONFIGURÁCIÓ
 # ============================================================
 CITY = "Budapest"
-WIDGET_WIDTH = 2200
-WIDGET_HEIGHT = 220
-WIDGET_Y = 80 # Ezt állítsd kisebbre (pl. 50), ha túl magasnak találod a képernyőn
-OFFSET_LEFT = 135
-INNER_MARGIN = 80
-ICON_SIZE = 80
+WIDGET_WIDTH  = 2200
+WIDGET_HEIGHT = 240
+WIDGET_Y      = 80
+OFFSET_LEFT   = 135
+INNER_MARGIN  = 80
+ICON_SIZE     = 80
+
+# Forecast panel méretek
+FC_ICON_SIZE  = 56   # kisebb ikon az előrejelzésnél
+FC_COL_WIDTH  = 155  # egy nap oszlopszélessége
 
 FONT_TEMP   = 90
-FONT_DESC   = 32
-FONT_LABEL  = 28
-FONT_VALUE  = 36
-FONT_UPDATE = 24
-FONT_SUN    = 22
+FONT_DESC   = 30
+FONT_LABEL  = 26
+FONT_VALUE  = 34
+FONT_UPDATE = 22
+FONT_SUN    = 20
+FONT_FC_DAY = 28   # nap neve (felül)
+FONT_FC_TMP = 30   # hőmérséklet (alul)
+FONT_FC_DSC = 20   # leírás (alul, kicsi)
 # ============================================================
+
+# ---- Háttérkép mapping ----
+BG_MAP = {
+    "sunny_day":         "images/sunny_day.jpg",
+    "sunny_night":       "images/sunny_night.jpg",
+    "cloudy_day":        "images/cloudy_day.jpg",
+    "cloudy_night":      "images/cloudy_night.jpg",
+    "rainy_day":         "images/rainy_day.jpg",
+    "rainy_night":       "images/rainy_night.jpg",
+    "snow_day":          "images/snow_day.jpg",
+    "snow_night":        "images/snow_night.jpg",
+    "foggy_day":         "images/foggy_day.jpg",
+    "foggy_night":       "images/foggy_night.jpg",
+    "sleet_day":         "images/sleet_day.jpg",
+    "sleet_night":       "images/sleet_night.jpg",
+    "hail_day":          "images/hail_day.jpg",
+    "hail_night":        "images/hail_night.jpg",
+}
+
+def get_bg_key(weather_id, is_night):
+    suffix = "night" if is_night else "day"
+    if weather_id == 800:
+        return f"sunny_{suffix}"
+    if weather_id in [801, 802, 803, 804]:
+        return f"cloudy_{suffix}"
+    if weather_id in range(500, 511):
+        return f"rainy_{suffix}"
+    if weather_id == 511:
+        return f"sleet_{suffix}"
+    if weather_id in range(512, 599):
+        return f"rainy_{suffix}"
+    if weather_id in range(600, 699):
+        return f"snow_{suffix}"
+    if weather_id in range(700, 799):
+        return f"foggy_{suffix}"
+    if weather_id in range(200, 299):
+        return f"rainy_{suffix}"
+    return f"cloudy_{suffix}"
+
+def load_bg(weather_id, is_night):
+    key = get_bg_key(weather_id, is_night)
+    path = BG_MAP.get(key)
+    if path and os.path.exists(path):
+        img = Image.open(path).convert("RGBA")
+        # resize to 3840x2160 ha szükséges
+        if img.size != (3840, 2160):
+            img = img.resize((3840, 2160), Image.Resampling.LANCZOS)
+        return img
+    # fallback: sötét alap
+    return Image.new("RGBA", (3840, 2160), (5, 5, 15, 255))
 
 def find_font(bold=False):
     paths = [
-        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf"    if bold else "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     ]
     for p in paths:
-        if os.path.exists(p): return p
+        if os.path.exists(p):
+            return p
     return None
 
 def get_f(size, bold=False):
     path = find_font(bold)
-    if path: return ImageFont.truetype(path, size)
+    if path:
+        return ImageFont.truetype(path, size)
     return ImageFont.load_default()
 
 def get_icon_name(weather_id, is_night):
@@ -58,158 +115,258 @@ def get_icon_name(weather_id, is_night):
     if weather_id in range(500, 599): return f"{suffix}_rain"
     if weather_id in range(600, 699): return f"{suffix}_snow"
     if weather_id in range(200, 299): return f"{suffix}_rain_thunder"
+    if weather_id in range(700, 799): return "cloudy"
     return "cloudy"
 
 def get_weather_hu(weather_id):
-    mapping = {800: "DERÜLT", 801: "PÁR FELHŐ", 802: "FELHŐS",
-               803: "ERŐSEN FELHŐS", 804: "BORULT", 511: "ÓNOS ESŐ"}
-    return mapping.get(weather_id, "VÁLTOZÉKONY")
+    if weather_id == 800: return "DERÜLT"
+    if weather_id == 801: return "PÁR FELHŐ"
+    if weather_id == 802: return "FELHŐS"
+    if weather_id == 803: return "ERŐSEN FELHŐS"
+    if weather_id == 804: return "BORULT"
+    if weather_id == 511: return "ÓNOS ESŐ"
+    if weather_id in range(500, 599): return "ESŐS"
+    if weather_id in range(600, 699): return "HAVAS"
+    if weather_id in range(700, 799): return "KÖDÖS"
+    if weather_id in range(200, 299): return "ZIVATAROS"
+    return "VÁLTOZÉKONY"
 
 def get_forecast_hu(weather_id):
     if weather_id == 800: return "NAPOS"
     if weather_id in [801, 802]: return "FELHŐS"
+    if weather_id == 803: return "FELHŐS"
+    if weather_id == 804: return "BORULT"
     if weather_id in range(500, 599): return "ESŐS"
     if weather_id in range(600, 699): return "HAVAS"
+    if weather_id in range(200, 299): return "ZIVATAR"
     return "BORULT"
 
-def load_icon(name):
+def load_icon(name, size=None):
+    target = size or ICON_SIZE
     url = f"{BASE_URL}/images/ICONS_PNG80/{name}.png"
     try:
         r = requests.get(url, timeout=10)
         r.raise_for_status()
         icon = Image.open(BytesIO(r.content)).convert("RGBA")
-        return icon.resize((ICON_SIZE, ICON_SIZE), Image.Resampling.LANCZOS)
-    except:
+        return icon.resize((target, target), Image.Resampling.LANCZOS)
+    except Exception as e:
+        print(f"  [icon] Nem sikerült betölteni: {name} – {e}")
         return None
 
-def draw_glass_bar(img, bx, by, bw, bh):
-    region = img.crop((bx, by, bx + bw, by + bh))
-    blurred = region.filter(ImageFilter.GaussianBlur(35)) # Kicsit több blur a szebb hatásért
+def draw_glass_bar(img, bx, by, bw, bh, blur=40, dark=100):
+    """Glassmorphism bar: blur + sötét overlay + rounded mask."""
+    region = img.crop((bx, by, bx + bw, by + bh)).convert("RGBA")
+    blurred = region.filter(ImageFilter.GaussianBlur(blur))
     mask = Image.new("L", (bw, bh), 0)
-    ImageDraw.Draw(mask).rounded_rectangle((0, 0, bw, bh), radius=30, fill=180)
-    overlay = Image.new("RGBA", (bw, bh), (0, 0, 15, 120)) # Kicsit sötétebb overlay
-    blurred = blurred.convert("RGBA")
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, bw - 1, bh - 1), radius=30, fill=200)
+    overlay = Image.new("RGBA", (bw, bh), (0, 0, 15, dark))
     blurred.putalpha(mask)
     result = Image.alpha_composite(blurred, overlay)
     img.paste(result, (bx, by), result)
+
+    # Finom keret
+    draw = ImageDraw.Draw(img)
+    draw.rounded_rectangle(
+        (bx, by, bx + bw - 1, by + bh - 1),
+        radius=30,
+        outline=(255, 255, 255, 35),
+        width=1
+    )
     return img
+
+def draw_divider(draw, x, y_top, y_bot, color):
+    for dx in [0, 3]:
+        draw.line([(x + dx, y_top), (x + dx, y_bot)], fill=color, width=1)
 
 def main():
     try:
-        # 1. ADATOK LEKÉRÉSE
-        resp = requests.get(f"https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric").json()
-        f_resp = requests.get(f"https://api.openweathermap.org/data/2.5/forecast?q={CITY}&appid={API_KEY}&units=metric").json()
+        # ── 1. ADATOK ──────────────────────────────────────────────
+        resp   = requests.get(
+            f"https://api.openweathermap.org/data/2.5/weather"
+            f"?q={CITY}&appid={API_KEY}&units=metric"
+        ).json()
+        f_resp = requests.get(
+            f"https://api.openweathermap.org/data/2.5/forecast"
+            f"?q={CITY}&appid={API_KEY}&units=metric"
+        ).json()
 
-        temp = round(resp["main"]["temp"])
-        feels = round(resp["main"]["feels_like"])
-        humidity = resp["main"]["humidity"]
-        wind = round(resp["wind"]["speed"] * 3.6)
+        temp       = round(resp["main"]["temp"])
+        feels      = round(resp["main"]["feels_like"])
+        humidity   = resp["main"]["humidity"]
+        wind       = round(resp["wind"]["speed"] * 3.6)
         weather_id = resp["weather"][0]["id"]
-        
-        now_ts = time.time()
+        tz_offset  = resp.get("timezone", 3600)
+
+        now_ts   = time.time()
         is_night = now_ts < resp["sys"]["sunrise"] or now_ts > resp["sys"]["sunset"]
+
         today_icon_name = get_icon_name(weather_id, is_night)
-        weather_hu = get_weather_hu(weather_id)
-        
-        tz_offset = resp.get("timezone", 3600)
-        sunrise_str = datetime.fromtimestamp(resp["sys"]["sunrise"], tz=timezone(timedelta(seconds=tz_offset))).strftime("%H:%M")
-        sunset_str = datetime.fromtimestamp(resp["sys"]["sunset"], tz=timezone(timedelta(seconds=tz_offset))).strftime("%H:%M")
+        weather_hu      = get_weather_hu(weather_id)
 
-        # 2. TISZTA ALAP LÉTREHOZÁSA (SZELLEMKÉP ELLEN)
-        # Itt ne a current.jpg-t nyisd meg, hanem egy fix alapképet vagy generálj újat!
-        img = Image.new("RGB", (3840, 2160), (5, 5, 10)) # Nagyon sötétkék/fekete alap
-        img = img.convert("RGBA")
-        
-        # Glass bar rajzolása
+        tz = timezone(timedelta(seconds=tz_offset))
+        sunrise_str = datetime.fromtimestamp(resp["sys"]["sunrise"], tz=tz).strftime("%H:%M")
+        sunset_str  = datetime.fromtimestamp(resp["sys"]["sunset"],  tz=tz).strftime("%H:%M")
+        local_now   = datetime.now(tz)
+
+        # ── 2. ALAP: HÁTTÉRKÉP (időjárás + napszak) ────────────────
+        img = load_bg(weather_id, is_night)
+
+        # ── 3. GLASS BAR ───────────────────────────────────────────
         img = draw_glass_bar(img, OFFSET_LEFT, WIDGET_Y, WIDGET_WIDTH, WIDGET_HEIGHT)
-        
+
         draw = ImageDraw.Draw(img)
-        # Fix színek (mivel az alapunk sötét, maradhatunk a fehérnél)
         c_main = (255, 255, 255, 255)
-        c_dim  = (255, 255, 255, 160)
-        c_line = (255, 255, 255, 50)
+        c_dim  = (200, 205, 215, 200)
+        c_div  = (255, 255, 255, 45)
 
-        f_t, f_d, f_l, f_v, f_u, f_s = get_f(90, True), get_f(32), get_f(28), get_f(36, True), get_f(24), get_f(22)
+        f_t  = get_f(FONT_TEMP,  bold=True)
+        f_d  = get_f(FONT_DESC)
+        f_l  = get_f(FONT_LABEL)
+        f_v  = get_f(FONT_VALUE, bold=True)
+        f_u  = get_f(FONT_UPDATE)
+        f_s  = get_f(FONT_SUN)
+        f_fd = get_f(FONT_FC_DAY, bold=True)
+        f_ft = get_f(FONT_FC_TMP, bold=True)
+        f_fc = get_f(FONT_FC_DSC)
 
+        mid_y  = WIDGET_Y + WIDGET_HEIGHT // 2
+        y_top  = WIDGET_Y + 30
+        y_bot  = WIDGET_Y + WIDGET_HEIGHT - 30
         curr_x = OFFSET_LEFT + INNER_MARGIN
-        mid_y = WIDGET_Y + (WIDGET_HEIGHT // 2)
 
-        # --- 1. SZEKCIÓ: MA ---
-        draw.text((curr_x, mid_y - 85), "MA", font=f_l, fill=c_dim)
+        # ── SZEKCIÓ 1: MA (hőmérséklet + ikon + leírás) ────────────
+        napok_hosszu = ["HÉTFŐ", "KEDD", "SZERDA", "CSÜTÖRTÖK", "PÉNTEK", "SZOMBAT", "VASÁRNAP"]
+        mai_nap = napok_hosszu[local_now.weekday()]
+        c_ghost = (200, 205, 215, 110)   # egy árnyalattal halványabb mint c_dim
+
+        ma_w = draw.textbbox((0, 0), "MA", font=f_l)[2]
+        draw.text((curr_x,           mid_y - 105), "MA",    font=f_l, fill=c_dim)
+        draw.text((curr_x + ma_w + 10, mid_y - 105), mai_nap, font=f_l, fill=c_ghost)
         temp_txt = f"{temp}°C"
-        draw.text((curr_x, mid_y - 65), temp_txt, font=f_t, fill=c_main)
-        draw.text((curr_x, mid_y + 35), weather_hu, font=f_d, fill=c_dim)
-        
-        temp_w = draw.textbbox((0,0), temp_txt, font=f_t)[2]
+        draw.text((curr_x, mid_y - 88), temp_txt, font=f_t, fill=c_main)
+
+        temp_w = draw.textbbox((0, 0), temp_txt, font=f_t)[2]
         icon_img = load_icon(today_icon_name)
         if icon_img:
-            img.paste(icon_img, (curr_x + temp_w + 30, mid_y - 40), icon_img)
-        
-        curr_x += max(temp_w + 160, 260)
-        for dx in [0, 4]: draw.line([(curr_x + dx, WIDGET_Y+40), (curr_x + dx, WIDGET_Y+WIDGET_HEIGHT-40)], fill=c_line, width=1)
-        curr_x += 40
+            img.paste(icon_img, (curr_x + temp_w + 18, mid_y - 50), icon_img)
 
-        # --- 2. SZEKCIÓ: ADATOK ---
+        draw.text((curr_x, mid_y + 35), weather_hu, font=f_d, fill=c_dim)
+
+        curr_x += max(temp_w + 160, 270)
+        draw_divider(draw, curr_x, y_top, y_bot, c_div)
+        curr_x += 36
+
+        # ── SZEKCIÓ 2: ADATOK (érzet / szél / pára) ─────────────────
         for label, val in [("ÉRZET", f"{feels}°C"), ("SZÉL", f"{wind} km/h"), ("PÁRA", f"{humidity}%")]:
-            draw.text((curr_x, mid_y - 45), label, font=f_l, fill=c_dim)
-            draw.text((curr_x, mid_y + 5), val, font=f_v, fill=c_main)
-            curr_x += 180
-            
-        for dx in [0, 4]: draw.line([(curr_x + dx, WIDGET_Y+40), (curr_x + dx, WIDGET_Y+WIDGET_HEIGHT-40)], fill=c_line, width=1)
-        curr_x += 40
+            draw.text((curr_x, mid_y - 50), label, font=f_l, fill=c_dim)
+            draw.text((curr_x, mid_y +  5), val,   font=f_v, fill=c_main)
+            curr_x += 185
 
-        # --- 3. SZEKCIÓ: NAPKELTE ---
-        draw.text((curr_x, mid_y - 45), "NAPKELTE / NAPNYUGTA", font=f_s, fill=c_dim)
-        draw.text((curr_x, mid_y + 5), f"{sunrise_str}  •  {sunset_str}", font=f_v, fill=c_main)
-        curr_x += 320
+        draw_divider(draw, curr_x, y_top, y_bot, c_div)
+        curr_x += 36
 
-        for dx in [0, 4]: draw.line([(curr_x + dx, WIDGET_Y+40), (curr_x + dx, WIDGET_Y+WIDGET_HEIGHT-30)], fill=c_line, width=1)
-        curr_x += 40
+        # ── SZEKCIÓ 3: NAPKELTE / NAPNYUGTA ─────────────────────────
+        draw.text((curr_x, mid_y - 50), "NAPKELTE / NAPNYUGTA", font=f_s, fill=c_dim)
+        draw.text((curr_x, mid_y +  5), f"{sunrise_str}  •  {sunset_str}", font=f_v, fill=c_main)
+        curr_x += 300
 
-        # --- 4. SZEKCIÓ: ELŐREJELZÉS ---
+        draw_divider(draw, curr_x, y_top, y_bot, c_div)
+        curr_x += 36
+
+        # ── SZEKCIÓ 4: ELŐREJELZÉS ───────────────────────────────────
+        # Layout: nap neve FELÜL (nagy), ikon középen, hőfok + leírás ALUL (kicsi)
         napok = ["HÉ", "KE", "SZE", "CS", "PÉ", "SZO", "VA"]
         seen_days = set()
         count = 0
         today_date = datetime.now().date()
 
+        fc_entries = []
         for entry in f_resp['list']:
-            dt = datetime.fromtimestamp(entry['dt'], tz=timezone(timedelta(seconds=tz_offset)))
+            dt = datetime.fromtimestamp(entry['dt'], tz=tz)
             if dt.date() > today_date and dt.date() not in seen_days:
-                if dt.hour >= 11 or entry == f_resp['list'][-1]:
-                    d_name = napok[dt.weekday()]
-                    f_id = entry['weather'][0]['id']
-                    f_icon = load_icon(get_icon_name(f_id, False))
-                    f_temp = f"{round(entry['main']['temp'])}°C"
-                    
-                    if f_icon: img.paste(f_icon, (curr_x, mid_y - 80), f_icon)
-                    draw.text((curr_x, mid_y + 5), d_name, font=f_l, fill=c_dim)
-                    draw.text((curr_x, mid_y + 35), f_temp, font=f_v, fill=c_main)
-                    draw.text((curr_x, mid_y + 75), get_forecast_hu(f_id), font=f_s, fill=c_dim)
-                    
-                    curr_x += 160
+                if dt.hour >= 11:
+                    fc_entries.append((dt, entry))
                     seen_days.add(dt.date())
-                    count += 1
-            if count == 3: break
+            if len(fc_entries) == 4:
+                break
 
-        # --- 5. FRISSÍTÉS ---
-        for dx in [0, 4]: draw.line([(curr_x + dx, WIDGET_Y+40), (curr_x + dx, WIDGET_Y+WIDGET_HEIGHT-40)], fill=c_line, width=1)
-        curr_x += 30
-        local_now = datetime.now(timezone(timedelta(seconds=tz_offset)))
-        update_txt = f"FRISSÍTVE\n{local_now.strftime('%H:%M')}"
-        draw.text((curr_x + 20, mid_y - 25), update_txt, font=f_u, fill=c_dim)
+        # Ha valamelyik napra nem volt 11 utáni adat, vegyük a legközelebbit
+        if len(fc_entries) < 4:
+            seen_days2 = set(e[0].date() for e in fc_entries)
+            for entry in f_resp['list']:
+                dt = datetime.fromtimestamp(entry['dt'], tz=tz)
+                if dt.date() > today_date and dt.date() not in seen_days2:
+                    fc_entries.append((dt, entry))
+                    seen_days2.add(dt.date())
+                if len(fc_entries) == 4:
+                    break
+            fc_entries.sort(key=lambda x: x[0])
 
-        # MENTÉS
+        fc_start_x = curr_x
+
+        for dt, entry in fc_entries[:4]:
+            d_name = napok[dt.weekday()]
+            f_id   = entry['weather'][0]['id']
+            f_temp = f"{round(entry['main']['temp'])}°C"
+            f_desc = get_forecast_hu(f_id)
+
+            col_cx = curr_x + FC_COL_WIDTH // 2
+
+            # NAP NEVE – felső sor
+            day_w = draw.textbbox((0, 0), d_name, font=f_fd)[2]
+            draw.text((col_cx - day_w // 2, y_top + 2), d_name, font=f_fd, fill=c_main)
+
+            # IKON – középre
+            f_icon = load_icon(get_icon_name(f_id, False), size=FC_ICON_SIZE)
+            if f_icon:
+                icon_x = col_cx - FC_ICON_SIZE // 2
+                icon_y = mid_y - FC_ICON_SIZE // 2 - 8
+                img.paste(f_icon, (icon_x, icon_y), f_icon)
+
+            # HŐFOK – alsó sor
+            tmp_w = draw.textbbox((0, 0), f_temp, font=f_ft)[2]
+            draw.text((col_cx - tmp_w // 2, y_bot - 58), f_temp, font=f_ft, fill=c_main)
+
+            # LEÍRÁS – legalsó sor
+            dsc_w = draw.textbbox((0, 0), f_desc, font=f_fc)[2]
+            draw.text((col_cx - dsc_w // 2, y_bot - 28), f_desc, font=f_fc, fill=c_dim)
+
+            curr_x += FC_COL_WIDTH
+
+        draw_divider(draw, curr_x + 10, y_top, y_bot, c_div)
+        curr_x += 46
+
+        # ── SZEKCIÓ 5: FRISSÍTVE ─────────────────────────────────────
+        update_line1 = "FRISSÍTVE"
+        update_line2 = local_now.strftime("%H:%M")
+        draw.text((curr_x + 10, mid_y - 28), update_line1, font=f_u, fill=c_dim)
+        draw.text((curr_x + 10, mid_y +  4), update_line2, font=f_u, fill=c_main)
+
+        # ── MENTÉS ───────────────────────────────────────────────────
+        os.makedirs("images", exist_ok=True)
         img.convert("RGB").save("images/current.jpg", "JPEG", quality=95)
-        
-        # JSON frissítés cache törléssel
-        v_param = int(time.time())
-        image_url = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images/current.jpg?v={v_param}"
-        weather_json = [{"location": CITY, "title": f"{weather_hu} {temp}°C", "image_url": image_url, "url_img": image_url}]
+        print(f"[OK] images/current.jpg elmentve ({local_now.strftime('%H:%M')})")
+
+        # JSON frissítés
+        v_param   = int(time.time())
+        image_url = (
+            f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}"
+            f"/{BRANCH}/images/current.jpg?v={v_param}"
+        )
+        weather_json = [{
+            "location":  CITY,
+            "title":     f"{weather_hu} {temp}°C",
+            "image_url": image_url,
+            "url_img":   image_url,
+        }]
         with open("weather.json", "w", encoding="utf-8") as f:
             json.dump(weather_json, f, ensure_ascii=False, indent=2)
+        print("[OK] weather.json frissítve")
 
     except Exception as e:
-        print(f"Hiba: {e}")
+        import traceback
+        print(f"[HIBA] {e}")
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()
