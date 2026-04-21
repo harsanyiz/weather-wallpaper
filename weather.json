@@ -1,9 +1,9 @@
 [
   {
-    "location": "TEST",
-    "title": "Test 2026-04-21 08:24:18",
-    "author": "GitHub Action",
-    "image_url": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776759858",
-    "url_img": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776759858"
+    "location": "Budapest",
+    "title": "DERULT 11°C",
+    "author": "OpenWeatherMap",
+    "image_url": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776759970",
+    "url_img": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776759970"
   }
 ]
