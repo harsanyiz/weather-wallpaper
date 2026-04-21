@@ -32,12 +32,15 @@ FONT_TEMP    = 90
 FONT_DESC    = 28
 FONT_LABEL   = 26
 FONT_VALUE   = 34
-FONT_UPDATE  = 18
 FONT_SUN     = 28
 FONT_FC_DAY  = 28
 FONT_FC_TMP  = 30
 FONT_FC_DSC  = 20
-FONT_NAMEDAY = 32
+FONT_NAMEDAY = 40
+FONT_UPDATE  = 24
+
+# Névnap szekció fix szélessége
+NAMEDAY_SECTION_W = 420
 # ============================================================
 
 # ---- Háttérkép mapping ----
@@ -251,9 +254,9 @@ def main():
         today_str = local_now.strftime("%m-%d")
         nameday_text = NAMEDAYS.get(today_str, "")
         if nameday_text:
-            nameday_text = nameday_text.replace(",", ", ").replace("\\", ", ")
-            nameday_list = [n.strip() for n in nameday_text.split(",")]
-            nameday_one_line = ", ".join(nameday_list)
+            nameday_text = nameday_text.replace("\\", ",")
+            nameday_list = [n.strip() for n in nameday_text.split(",") if n.strip()]
+            nameday_one_line = ",  ".join(nameday_list)
         else:
             nameday_list = []
             nameday_one_line = ""
@@ -296,12 +299,25 @@ def main():
         temp_txt = f"{temp}°C"
         draw.text((curr_x, mid_y - 88), temp_txt, font=f_t, fill=c_main)
 
-        # Érzet IKONNAL
-        feels_icon = load_icon("feel", size=32)
+        # Érzet: BORULT után ikon + szám (érzet szöveg nélkül)
+        feels_icon = load_icon("feel", size=28)
+        feels_temp = f"{feels}°C"
+        
+        # 1. Kiírjuk az időjárás szöveget (BORULT, DERÜLT stb.)
+        draw.text((curr_x, mid_y + 5), weather_hu, font=f_d, fill=c_dim)
+        
+        # 2. Számoljuk a szélességét
+        weather_w = draw.textbbox((0, 0), weather_hu, font=f_d)[2]
+        
+        # 3. Ikon + szám kezdete (20px szóközzel)
+        feels_start_x = curr_x + weather_w + 20
+        
+        # 4. Ikon
         if feels_icon:
-            img.paste(feels_icon, (curr_x, mid_y + 2), feels_icon)
-        feels_txt = f"érzet: {feels}°C"
-        draw.text((curr_x + 40, mid_y + 5), feels_txt, font=f_d, fill=c_dim)
+            img.paste(feels_icon, (feels_start_x, mid_y + 6), feels_icon)
+        
+        # 5. Szám az ikon után
+        draw.text((feels_start_x + 32, mid_y + 5), feels_temp, font=f_d, fill=c_dim)
 
         temp_w = draw.textbbox((0, 0), temp_txt, font=f_t)[2]
         icon_img = load_icon(today_icon_name)
@@ -314,21 +330,21 @@ def main():
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
         curr_x += 36
 
-        # ── SZEKCIÓ 2: NAPKELTE/NAPNYUGTA (középre) ─────────────────
+        # ── SZEKCIÓ 2: NAPKELTE/NAPNYUGTA ─────────────────────────────
         SUN_ICON_SIZE = 28
         
         day_icon   = load_icon("day_clear", size=SUN_ICON_SIZE)
         night_icon = load_icon("night_clear", size=SUN_ICON_SIZE)
         
         sr_w = draw.textbbox((0, 0), sunrise_str, font=f_s)[2]
-        ss_w = draw.textbbox((0, 0), sunset_str, font=f_s)[2]
+        ss_w = draw.textbbox((0, 0), sunset_str,  font=f_s)[2]
         dot_w = draw.textbbox((0, 0), "•", font=f_s)[2]
         
+        sun_section_w = 320
+        available_width = sun_section_w
+
         total_w = SUN_ICON_SIZE + 8 + sr_w + 20 + dot_w + 20 + SUN_ICON_SIZE + 8 + ss_w
-        
-        next_divider_x = curr_x + 400
-        available_width = next_divider_x - curr_x
-        sun_x = curr_x + (available_width - total_w) // 2
+        sun_x = curr_x + (sun_section_w - total_w) // 2
         
         rx = sun_x
         if day_icon:
@@ -343,28 +359,38 @@ def main():
             img.paste(night_icon, (rx, mid_y - 20), night_icon)
         draw.text((rx + SUN_ICON_SIZE + 8, mid_y - 20), sunset_str, font=f_s, fill=c_main)
         
-        # ── SZEKCIÓ 3: SZÉL + PÁRA (IKONOKKAL, középre) ────────────
-        wind_icon = load_icon("tornado", size=32)
-        hum_icon = load_icon("para", size=32)
-        
-        wind_txt = f"{wind} km/h"
-        hum_txt = f"{humidity}%"
-        
-        wind_w = draw.textbbox((0, 0), wind_txt, font=f_d)[2]
-        hum_w = draw.textbbox((0, 0), hum_txt, font=f_d)[2]
-        
-        total_w2 = 32 + 8 + wind_w + 40 + 32 + 8 + hum_w
+        # ── SZEKCIÓ 3: SZÉL + PÁRA (ikon + szöveg, középre) ─────────
+        WIND_ICON_SIZE = 26
+        wind_icon = load_icon("tornado", size=WIND_ICON_SIZE)
+        hum_icon  = load_icon("para", size=WIND_ICON_SIZE)
+
+        wind_label = f"{wind} km/h"
+        hum_label  = f"{humidity}%"
+
+        wind_ico_w = (WIND_ICON_SIZE + 6) if wind_icon else 0
+        hum_ico_w  = (WIND_ICON_SIZE + 6) if hum_icon  else 0
+
+        wind_lw = draw.textbbox((0, 0), wind_label, font=f_d)[2]
+        hum_lw  = draw.textbbox((0, 0), hum_label,  font=f_d)[2]
+
+        block_wind_w = wind_ico_w + wind_lw
+        block_hum_w  = hum_ico_w  + hum_lw
+        between = 32
+        total_w2 = block_wind_w + between + block_hum_w
         info_x = curr_x + (available_width - total_w2) // 2
-        
+
+        row_y = mid_y + 16
+        wx = info_x
         if wind_icon:
-            img.paste(wind_icon, (info_x, mid_y + 12), wind_icon)
-        draw.text((info_x + 32 + 8, mid_y + 15), wind_txt, font=f_d, fill=c_dim)
-        
+            img.paste(wind_icon, (wx, row_y + 1), wind_icon)
+        draw.text((wx + wind_ico_w, row_y), wind_label, font=f_d, fill=c_dim)
+
+        hx = info_x + block_wind_w + between
         if hum_icon:
-            img.paste(hum_icon, (info_x + 32 + 8 + wind_w + 40, mid_y + 12), hum_icon)
-        draw.text((info_x + 32 + 8 + wind_w + 40 + 32 + 8, mid_y + 15), hum_txt, font=f_d, fill=c_dim)
+            img.paste(hum_icon, (hx, row_y + 1), hum_icon)
+        draw.text((hx + hum_ico_w, row_y), hum_label, font=f_d, fill=c_dim)
         
-        curr_x = next_divider_x
+        curr_x = curr_x + sun_section_w
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
         curr_x += 36
 
@@ -395,7 +421,10 @@ def main():
             fc_entries.sort(key=lambda x: x[0])
         
         widget_right = OFFSET_LEFT + WIDGET_WIDTH - INNER_MARGIN
-        fc_available = widget_right - curr_x - 200
+        nameday_section_w = NAMEDAY_SECTION_W
+        
+        fc_end_x = widget_right - nameday_section_w - 36 - 6
+        fc_available = fc_end_x - curr_x
         fc_col_w = min(FC_COL_WIDTH, fc_available // 4)
         
         for dt, entry in fc_entries[:4]:
@@ -423,16 +452,31 @@ def main():
             
             curr_x += fc_col_w
         
-        # ── SZEKCIÓ 5: NÉVNAPOK + FRISSÍTVE (középre, nagyobb) ─────
+        draw_divider(draw, fc_end_x + 6, y_top, y_bot, c_div)
+        nameday_x = fc_end_x + 6 + 36
+
+        # ── SZEKCIÓ 5: NÉVNAPOK + FRISSÍTVE ─────────────────────────
+        nd_cx = nameday_x + (widget_right - nameday_x) // 2
+        max_nd_w = widget_right - nameday_x - 20
+        
         if nameday_one_line:
-            center_x = OFFSET_LEFT + WIDGET_WIDTH // 2
+            upd_text = f"Frissítve: {local_now.strftime('%H:%M')}"
             
-            nameday_w = draw.textbbox((0, 0), nameday_one_line, font=f_n)[2]
-            draw.text((center_x - nameday_w // 2, y_bot - 55), nameday_one_line, font=f_n, fill=c_dim)
+            f_nd = f_n
+            nd_w = draw.textbbox((0, 0), nameday_one_line, font=f_nd)[2]
+            if nd_w > max_nd_w:
+                shrink_size = int(FONT_NAMEDAY * max_nd_w / nd_w) - 2
+                f_nd = get_f(max(shrink_size, 22), bold=False)
+                nd_w = draw.textbbox((0, 0), nameday_one_line, font=f_nd)[2]
+
+            draw.text((nd_cx - nd_w // 2, mid_y - 50), nameday_one_line, font=f_nd, fill=c_main)
             
+            upd_w = draw.textbbox((0, 0), upd_text, font=f_u)[2]
+            draw.text((nd_cx - upd_w // 2, y_bot - 32), upd_text, font=f_u, fill=c_dim)
+        else:
             upd_text = f"Frissítve: {local_now.strftime('%H:%M')}"
             upd_w = draw.textbbox((0, 0), upd_text, font=f_u)[2]
-            draw.text((center_x - upd_w // 2, y_bot - 25), upd_text, font=f_u, fill=c_main)
+            draw.text((nd_cx - upd_w // 2, mid_y - 13), upd_text, font=f_u, fill=c_dim)
         
         # ── MENTÉS ───────────────────────────────────────────────────
         os.makedirs("images", exist_ok=True)
