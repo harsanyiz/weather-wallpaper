@@ -26,7 +26,7 @@ ICON_SIZE     = 80
 
 # Forecast panel méretek
 FC_ICON_SIZE  = 48   # kisebb ikon az előrejelzésnél
-FC_COL_WIDTH  = 130  # egy nap oszlopszélessége
+FC_COL_WIDTH  = 110  # egy nap oszlopszélessége
 
 FONT_TEMP   = 90
 FONT_DESC   = 30
