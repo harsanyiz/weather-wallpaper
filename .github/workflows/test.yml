@@ -1,7 +1,7 @@
 name: Test Overflight Images
 
 on:
-  workflow_dispatch:  # Csak manuálisan indítható
+  workflow_dispatch:
 
 jobs:
   test:
@@ -20,19 +20,29 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install requests Pillow
-          sudo apt-get update
-          sudo apt-get install -y fonts-noto fonts-noto-core
+          pip install Pillow
+          python -c "import PIL; print(f'Pillow version: {PIL.__version__}')"
       
-      - name: Run test (change this line to test different files)
-        run: python test_overflight.py   # <-- ITT ÁTÍRHATOD, HOGY MIT TESZTELSZ
-        env:
-          OWM_API_KEY: ${{ secrets.OWM_API_KEY }}
+      - name: List files before test
+        run: |
+          echo "=== Fájlok a futás előtt ==="
+          ls -la images/ || echo "images mappa nem létezik"
       
-      - name: Commit and push test results
+      - name: Run test
+        run: python test_overflight.py
+      
+      - name: List files after test
+        run: |
+          echo "=== Fájlok a futás után ==="
+          ls -la images/
+          echo "=== current.jpg info ==="
+          file images/current.jpg || echo "current.jpg NEM LÉTEZIK!"
+      
+      - name: Commit and push
         run: |
           git config user.name "test-bot"
           git config user.email "test@bot"
           git add images/current.jpg weather.json
-          git commit -m "🧪 Test image $(date '+%Y-%m-%d %H:%M')" || echo "No changes to commit"
+          git status
+          git commit -m "Test image $(date '+%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
           git push origin main
