@@ -14,57 +14,48 @@ BRANCH = "main"
 BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}"
 
 # ============================================================
-# KONFIGURÁCIÓ - MODERN 4K DESIGN
+# KONFIGURÁCIÓ - KOMPAKT MODERN DESIGN (4K)
 # ============================================================
 CITY = "Budapest"
 
-# Képernyő méret (4K)
 SCREEN_W = 3840
 SCREEN_H = 2160
 
-# Widget elhelyezkedése és mérete
-WIDGET_WIDTH = 2400          # Szellősebb elrendezés
-WIDGET_HEIGHT = 320          # Több "levegő" az adatoknak
+# Widget méretek - Keskenyebb, feszesebb elrendezés
+WIDGET_WIDTH = 2400          
+WIDGET_HEIGHT = 245          # 320-ról csökkentve a kompaktságért
 WIDGET_X = 80                
 WIDGET_Y = 80
 
-# Margók és térközök
-INNER_MARGIN = 60            # Nagyobb belső margó a prémium érzetért
+INNER_MARGIN = 60            
 
-# Ikon méretek
-ICON_SIZE = 110              # Fő ikon hangsúlyosabb
-FC_ICON_SIZE = 60            
+# Ikon méretek - Finomhangolva az alacsonyabb sávhoz
+ICON_SIZE = 100              
+FC_ICON_SIZE = 55            
 SUN_ICON_SIZE = 32
 WIND_ICON_SIZE = 28
 HUM_ICON_SIZE = 28
 
-# Betűméretek (Noto Sans / DejaVu Sans-ra optimalizálva)
-FONT_TEMP = 100              # Domináns hőmérséklet
-FONT_DESC = 32               # Időjárás leírás
-FONT_LABEL = 22              # Kisebb, diszkrét feliratok (MA, NÉVNAP)
-FONT_SUN = 30                
-FONT_FC_DAY = 30             
-FONT_FC_TMP = 38             
-FONT_FC_DSC = 24             
-FONT_NAMEDAY = 36            
-FONT_UPDATE = 20             
+# Betűméretek
+FONT_TEMP = 95               
+FONT_DESC = 30               
+FONT_LABEL = 20              # MA / NÉVNAP felirat
+FONT_SUN = 28                
+FONT_FC_DAY = 28             
+FONT_FC_TMP = 36             
+FONT_FC_DSC = 22             
+FONT_NAMEDAY = 34            
+FONT_UPDATE = 18             
 # ============================================================
 
 BG_MAP = {
-    "sunny_day": "images/sunny_day.jpg",
-    "sunny_night": "images/sunny_night.jpg",
-    "cloudy_day": "images/cloudy_day.jpg",
-    "cloudy_night": "images/cloudy_night.jpg",
-    "rainy_day": "images/rainy_day.jpg",
-    "rainy_night": "images/rainy_night.jpg",
-    "snow_day": "images/snow_day.jpg",
-    "snow_night": "images/snow_night.jpg",
-    "foggy_day": "images/foggy_day.jpg",
-    "foggy_night": "images/foggy_night.jpg",
-    "sleet_day": "images/sleet_day.jpg",
-    "sleet_night": "images/sleet_night.jpg",
-    "hail_day": "images/hail_day.jpg",
-    "hail_night": "images/hail_night.jpg",
+    "sunny_day": "images/sunny_day.jpg", "sunny_night": "images/sunny_night.jpg",
+    "cloudy_day": "images/cloudy_day.jpg", "cloudy_night": "images/cloudy_night.jpg",
+    "rainy_day": "images/rainy_day.jpg", "rainy_night": "images/rainy_night.jpg",
+    "snow_day": "images/snow_day.jpg", "snow_night": "images/snow_night.jpg",
+    "foggy_day": "images/foggy_day.jpg", "foggy_night": "images/foggy_night.jpg",
+    "sleet_day": "images/sleet_day.jpg", "sleet_night": "images/sleet_night.jpg",
+    "hail_day": "images/hail_day.jpg", "hail_night": "images/hail_night.jpg",
 }
 
 def get_bg_key(weather_id, is_night):
@@ -140,8 +131,7 @@ def load_icon(name, size=None):
         r.raise_for_status()
         icon = Image.open(BytesIO(r.content)).convert("RGBA")
         return icon.resize((target, target), Image.Resampling.LANCZOS)
-    except:
-        return None
+    except: return None
 
 def draw_glass_bar(img, bx, by, bw, bh, blur=50, dark=45):
     region = img.crop((bx, by, bx + bw, by + bh)).convert("RGBA")
@@ -157,7 +147,7 @@ def draw_glass_bar(img, bx, by, bw, bh, blur=50, dark=45):
     return img
 
 def draw_divider(draw, x, y_top, y_bot, color):
-    draw.line([(x, y_top + 30), (x, y_bot - 30)], fill=color, width=1)
+    draw.line([(x, y_top + 40), (x, y_bot - 40)], fill=color, width=1)
 
 def load_namedays():
     namedays = {}
@@ -210,34 +200,32 @@ def main():
         f_fd, f_ft, f_fc, f_n = get_f(FONT_FC_DAY, True), get_f(FONT_FC_TMP, True), get_f(FONT_FC_DSC), get_f(FONT_NAMEDAY)
 
         mid_y = WIDGET_Y + WIDGET_HEIGHT // 2
-        y_top, y_bot = WIDGET_Y + 25, WIDGET_Y + WIDGET_HEIGHT - 25
+        y_top, y_bot = WIDGET_Y + 20, WIDGET_Y + WIDGET_HEIGHT - 20
         curr_x = WIDGET_X + INNER_MARGIN
 
-        # --- MA ---
-        draw.text((curr_x, mid_y - 105), "MA", font=f_l, fill=c_dim)
-        draw.text((curr_x, mid_y - 90), f"{temp}°C", font=f_t, fill=c_main)
+        # --- MA (Kompakt eltolások) ---
+        draw.text((curr_x, mid_y - 85), "MA", font=f_l, fill=c_dim)
+        draw.text((curr_x, mid_y - 70), f"{temp}°C", font=f_t, fill=c_main)
         temp_w = draw.textbbox((0, 0), f"{temp}°C", font=f_t)[2]
         
         weather_txt = f"{get_weather_hu(weather_id)}  |  {feels}°C érzet"
-        draw.text((curr_x, mid_y + 25), weather_txt, font=f_d, fill=c_dim)
+        draw.text((curr_x, mid_y + 35), weather_txt, font=f_d, fill=c_dim)
         
         main_icon = load_icon(get_icon_name(weather_id, is_night))
-        if main_icon: img.paste(main_icon, (curr_x + temp_w + 35, mid_y - 95), main_icon)
+        if main_icon: img.paste(main_icon, (curr_x + temp_w + 35, mid_y - 75), main_icon)
 
         curr_x += 500
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
         curr_x += 60
 
-        # --- ADATOK ---
-        sr_icon = load_icon("day_clear", SUN_ICON_SIZE)
-        ss_icon = load_icon("night_clear", SUN_ICON_SIZE)
-        if sr_icon: img.paste(sr_icon, (curr_x, mid_y - 65), sr_icon)
-        draw.text((curr_x + 45, mid_y - 68), sunrise_str, font=f_s, fill=c_main)
-        if ss_icon: img.paste(ss_icon, (curr_x + 180, mid_y - 65), ss_icon)
-        draw.text((curr_x + 225, mid_y - 68), sunset_str, font=f_s, fill=c_main)
+        # --- ADATOK (Sűrítve) ---
+        sr_icon, ss_icon = load_icon("day_clear", SUN_ICON_SIZE), load_icon("night_clear", SUN_ICON_SIZE)
+        if sr_icon: img.paste(sr_icon, (curr_x, mid_y - 55), sr_icon)
+        draw.text((curr_x + 45, mid_y - 58), sunrise_str, font=f_s, fill=c_main)
+        if ss_icon: img.paste(ss_icon, (curr_x + 180, mid_y - 55), ss_icon)
+        draw.text((curr_x + 225, mid_y - 58), sunset_str, font=f_s, fill=c_main)
 
-        w_icon = load_icon("tornado", WIND_ICON_SIZE)
-        h_icon = load_icon("para", HUM_ICON_SIZE)
+        w_icon, h_icon = load_icon("tornado", WIND_ICON_SIZE), load_icon("para", HUM_ICON_SIZE)
         if w_icon: img.paste(w_icon, (curr_x, mid_y + 25), w_icon)
         draw.text((curr_x + 40, mid_y + 25), f"{wind} km/h", font=f_d, fill=c_dim)
         if h_icon: img.paste(h_icon, (curr_x + 220, mid_y + 25), h_icon)
@@ -247,7 +235,7 @@ def main():
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
         curr_x += 40
 
-        # --- ELŐREJELZÉS ---
+        # --- ELŐREJELZÉS (Függőlegesen feszesre húzva) ---
         napok, seen, fc_entries = ["H", "K", "SZ", "CS", "P", "SZ", "V"], set(), []
         for entry in f_resp['list']:
             dt = datetime.fromtimestamp(entry['dt'], tz=tz)
@@ -258,11 +246,11 @@ def main():
 
         for dt, entry in fc_entries:
             col_x = curr_x + 75
-            draw.text((col_x, y_top + 15), napok[dt.weekday()], font=f_fd, fill=c_main, anchor="mm")
+            draw.text((col_x, mid_y - 85), napok[dt.weekday()], font=f_fd, fill=c_main, anchor="mm")
             f_icon = load_icon(get_icon_name(entry['weather'][0]['id'], False), FC_ICON_SIZE)
-            if f_icon: img.paste(f_icon, (col_x - FC_ICON_SIZE//2, mid_y - FC_ICON_SIZE//2 - 5), f_icon)
-            draw.text((col_x, y_bot - 65), f"{round(entry['main']['temp'])}°", font=f_ft, fill=c_main, anchor="mm")
-            draw.text((col_x, y_bot - 25), get_forecast_hu(entry['weather'][0]['id']), font=f_fc, fill=c_dim, anchor="mm")
+            if f_icon: img.paste(f_icon, (col_x - FC_ICON_SIZE//2, mid_y - FC_ICON_SIZE//2), f_icon)
+            draw.text((col_x, mid_y + 40), f"{round(entry['main']['temp'])}°", font=f_ft, fill=c_main, anchor="mm")
+            draw.text((col_x, mid_y + 75), get_forecast_hu(entry['weather'][0]['id']), font=f_fc, fill=c_dim, anchor="mm")
             curr_x += 150
 
         curr_x += 40
@@ -270,16 +258,15 @@ def main():
         
         # --- NÉVNAP ---
         nd_cx = curr_x + (WIDGET_X + WIDGET_WIDTH - curr_x) // 2
-        draw.text((nd_cx, mid_y - 45), "NÉVNAP", font=f_l, fill=c_dim, anchor="mm")
+        draw.text((nd_cx, mid_y - 50), "NÉVNAP", font=f_l, fill=c_dim, anchor="mm")
         draw.text((nd_cx, mid_y + 5), nameday_one_line or "---", font=f_n, fill=c_main, anchor="mm")
-        draw.text((nd_cx, y_bot - 20), f"Frissítve: {local_now.strftime('%H:%M')}", font=f_u, fill=c_dim, anchor="mm")
+        draw.text((nd_cx, mid_y + 60), f"Frissítve: {local_now.strftime('%H:%M')}", font=f_u, fill=c_dim, anchor="mm")
 
         img.convert("RGB").save("images/current.jpg", "JPEG", quality=95)
         with open("weather.json", "w", encoding="utf-8") as f:
             json.dump([{"location": CITY, "title": f"{temp}°C", "image_url": f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images/current.jpg?v={int(time.time())}"}], f, ensure_ascii=False, indent=2)
 
-    except Exception as e:
-        print(f"Hiba: {e}")
+    except Exception as e: print(f"Hiba: {e}")
 
 if __name__ == "__main__":
     main()
