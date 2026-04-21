@@ -112,17 +112,11 @@ def paste_icon(img, icon, cx, cy):
     img.paste(icon, (x, y), icon)
 
 # ----------------------------------------------------------------
-# HÁTTÉR – sötétkék gradiens tesztkép
+# HÁTTÉR – TELJESEN FEKETE
 # ----------------------------------------------------------------
 width, height = 3840, 2160
-img = Image.new("RGB", (width, height), (15, 25, 45))
-draw_bg = ImageDraw.Draw(img)
-for y in range(height):
-    t = y / height
-    draw_bg.line([(0, y), (width, y)], fill=(
-        int(15 + t*10), int(25 + t*15), int(45 + t*30)
-    ))
-print("✓ Háttér generálva")
+img = Image.new("RGB", (width, height), (0, 0, 0))
+print("✓ Fekete háttér generálva")
 
 # ----------------------------------------------------------------
 # IKON BETÖLTÉSE
