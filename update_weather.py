@@ -14,17 +14,32 @@ BRANCH = "main"
 BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}"
 
 # ============================================================
-# KONFIGURÁCIÓ
+# KONFIGURÁCIÓ - FIX POZÍCIÓKKAL
 # ============================================================
 CITY = "Budapest"
 WIDGET_WIDTH  = 2400
 WIDGET_HEIGHT = 260
 WIDGET_Y      = 70
 OFFSET_LEFT   = 120
-INNER_MARGIN  = 70
+
+# FIX POZÍCIÓK (x koordináták)
+POS_MA_NAP       = 190    # "MA" + nap neve
+POS_HOMERSEKLET  = 190    # hőmérséklet
+POS_IKON         = 340    # időjárás ikon
+POS_LEIRAS       = 190    # leírás
+
+POS_NAP_OSZLOP   = 520    # Napkelte/Napnyugta oszlop
+POS_ADAT_OSZLOP  = 820    # Érzet/Szél/Pára oszlop
+POS_FORECAST     = 1120   # Előrejelzés kezdete
+POS_FRISSITES    = 2150   # Frissítés (jobb szél)
+
+# Oszlop szélességek
+COL_W_NAP        = 220
+COL_W_ADAT       = 280
+COL_W_FORECAST   = 180   # egy nap szélessége
+
 ICON_SIZE     = 80
-FC_ICON_SIZE  = 48
-FC_COL_WIDTH  = 140
+FC_ICON_SIZE  = 50
 
 FONT_TEMP   = 96
 FONT_DESC   = 34
@@ -103,26 +118,26 @@ def get_icon_name(weather_id, is_night):
     return "cloudy"
 
 def get_weather_hu(weather_id):
-    if weather_id == 800: return "DERULT"
-    if weather_id == 801: return "PAR FELHO"
-    if weather_id == 802: return "FELHOS"
-    if weather_id == 803: return "FELHOS"
-    if weather_id == 804: return "BORULT"
-    if weather_id == 511: return "ONOS ESO"
-    if weather_id in range(500, 599): return "ESOS"
-    if weather_id in range(600, 699): return "HAVAS"
-    if weather_id in range(700, 799): return "KODOS"
-    if weather_id in range(200, 299): return "ZIVATAR"
-    return "VALTOZEKONY"
+    if weather_id == 800: return "Derült"
+    if weather_id == 801: return "Pár felhő"
+    if weather_id == 802: return "Felhős"
+    if weather_id == 803: return "Felhős"
+    if weather_id == 804: return "Borult"
+    if weather_id == 511: return "Ónos eső"
+    if weather_id in range(500, 599): return "Esős"
+    if weather_id in range(600, 699): return "Havas"
+    if weather_id in range(700, 799): return "Ködös"
+    if weather_id in range(200, 299): return "Zivataros"
+    return "Változékony"
 
 def get_forecast_hu(weather_id):
-    if weather_id == 800: return "NAP"
-    if weather_id in [801, 802, 803]: return "FELHO"
-    if weather_id == 804: return "BORU"
-    if weather_id in range(500, 599): return "ESO"
-    if weather_id in range(600, 699): return "HO"
-    if weather_id in range(200, 299): return "ZIVA"
-    return "FELHO"
+    if weather_id == 800: return "Napos"
+    if weather_id in [801, 802, 803]: return "Felhős"
+    if weather_id == 804: return "Borult"
+    if weather_id in range(500, 599): return "Esős"
+    if weather_id in range(600, 699): return "Havas"
+    if weather_id in range(200, 299): return "Zivatar"
+    return "Felhős"
 
 def load_icon(name, size=None):
     target = size or ICON_SIZE
@@ -170,7 +185,7 @@ def main():
         sunrise_str = datetime.fromtimestamp(resp["sys"]["sunrise"], tz=tz).strftime("%H:%M")
         sunset_str = datetime.fromtimestamp(resp["sys"]["sunset"], tz=tz).strftime("%H:%M")
 
-        # Előrejelzés - 4 nap
+        # Előrejelzés
         forecast_list = []
         seen_days = set()
         today = now_dt.date()
@@ -185,10 +200,9 @@ def main():
         print(f"Hiba: {e}")
         return
 
-    # Háttérkép betöltés
+    # Háttérkép
     img = load_bg(weather_id, is_night)
 
-    # Widget pozíciók
     bx = OFFSET_LEFT
     by = WIDGET_Y
     bw = WIDGET_WIDTH
@@ -213,144 +227,67 @@ def main():
     c_dim = (200, 200, 200, 180)
     c_div = (255, 255, 255, 60)
 
-    # Középpontok
     mid_y = by + bh // 2
     y_top = by + 35
     y_bot = by + bh - 35
 
-    x = bx + INNER_MARGIN
-
-    # ==================== 1. MA ====================
-    day_names = ["HETFO", "KEDD", "SZERDA", "CSUTORTOK", "PENTEK", "SZOMBAT", "VASARNAP"]
+    # ==================== 1. MA blokk ====================
+    day_names = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat", "Vasárnap"]
     day_txt = day_names[now_dt.weekday()]
     
-    draw.text((x, mid_y - 100), "MA", font=f_label, fill=c_dim)
-    draw.text((x + 50, mid_y - 100), day_txt, font=f_label, fill=c_dim)
+    draw.text((POS_MA_NAP, mid_y - 100), "MA", font=f_label, fill=c_dim)
+    draw.text((POS_MA_NAP + 45, mid_y - 100), day_txt, font=f_label, fill=c_dim)
+    draw.text((POS_HOMERSEKLET, mid_y - 70), f"{temp}°C", font=f_temp, fill=c_main)
     
-    temp_txt = f"{temp}C"
-    draw.text((x, mid_y - 70), temp_txt, font=f_temp, fill=c_main)
-    
-    temp_w = draw.textbbox((0,0), temp_txt, font=f_temp)[2]
-    
-    # Ikon betöltés
+    # Ikon
     weather_icon = load_icon(icon_name)
     if weather_icon:
-        img.paste(weather_icon, (x + temp_w + 15, mid_y - 85), weather_icon)
-        icon_end = x + temp_w + 15 + ICON_SIZE
-    else:
-        icon_end = x + temp_w + 15
+        img.paste(weather_icon, (POS_IKON, mid_y - 85), weather_icon)
     
-    draw.text((x, mid_y + 20), weather_hu, font=f_desc, fill=c_dim)
+    draw.text((POS_LEIRAS, mid_y + 25), weather_hu, font=f_desc, fill=c_dim)
     
-    # Első blokk szélessége
-    block1_w = max(icon_end, x + 200) - x
-    x += block1_w + 40
-    draw_divider(draw, x, y_top, y_bot, c_div)
-    x += 30
+    # Elválasztó
+    draw_divider(draw, POS_NAP_OSZLOP - 25, y_top, y_bot, c_div)
 
     # ==================== 2. Napkelte/Napnyugta ====================
-    # Ikonok betöltése
-    sun_icon = load_icon("day_clear", size=36)
-    moon_icon = load_icon("night_clear", size=36)
+    draw.text((POS_NAP_OSZLOP, mid_y - 45), sunrise_str, font=f_value, fill=c_main)
+    draw.text((POS_NAP_OSZLOP + 100, mid_y - 45), "•", font=f_value, fill=c_dim)
+    draw.text((POS_NAP_OSZLOP + 120, mid_y - 45), sunset_str, font=f_value, fill=c_main)
     
-    # Napkelte sor
-    if sun_icon:
-        img.paste(sun_icon, (x, mid_y - 45), sun_icon)
-        sun_x = x + 40
-    else:
-        sun_x = x
-    
-    draw.text((sun_x, mid_y - 42), sunrise_str, font=f_value, fill=c_main)
-    sun_end = sun_x + draw.textbbox((0,0), sunrise_str, font=f_value)[2]
-    
-    # Kötőjel
-    draw.text((sun_end + 15, mid_y - 42), "•", font=f_value, fill=c_dim)
-    
-    # Napnyugta sor
-    if moon_icon:
-        img.paste(moon_icon, (sun_end + 35, mid_y - 45), moon_icon)
-        moon_x = sun_end + 75
-    else:
-        moon_x = sun_end + 35
-    
-    draw.text((moon_x, mid_y - 42), sunset_str, font=f_value, fill=c_main)
-    
-    block2_w = (moon_x + draw.textbbox((0,0), sunset_str, font=f_value)[2]) - x
-    x += block2_w + 40
-    draw_divider(draw, x, y_top, y_bot, c_div)
-    x += 30
+    draw_divider(draw, POS_ADAT_OSZLOP - 25, y_top, y_bot, c_div)
 
-    # ==================== 3. Adatok (Érzet, Szél, Pára) ====================
-    # Ikonok betöltése
-    feel_icon = load_icon("feel", size=36) if load_icon("feel", size=36) else None
-    wind_icon = load_icon("wind", size=36)
-    humid_icon = load_icon("para", size=36) if load_icon("para", size=36) else None
+    # ==================== 3. Adatok ====================
+    draw.text((POS_ADAT_OSZLOP, mid_y - 45), f"{feels}°C", font=f_value, fill=c_main)
+    draw.text((POS_ADAT_OSZLOP + 90, mid_y - 45), f"{wind} km/h", font=f_value, fill=c_main)
+    draw.text((POS_ADAT_OSZLOP + 190, mid_y - 45), f"{humidity}%", font=f_value, fill=c_main)
     
-    # Érzet
-    if feel_icon:
-        img.paste(feel_icon, (x, mid_y - 45), feel_icon)
-        feel_x = x + 40
-    else:
-        feel_x = x
-    draw.text((feel_x, mid_y - 42), f"{feels}C", font=f_value, fill=c_main)
-    feel_end = feel_x + draw.textbbox((0,0), f"{feels}C", font=f_value)[2]
-    
-    # Szél
-    x = feel_end + 50
-    if wind_icon:
-        img.paste(wind_icon, (x, mid_y - 45), wind_icon)
-        wind_x = x + 40
-    else:
-        wind_x = x
-    draw.text((wind_x, mid_y - 42), f"{wind}KM/H", font=f_value, fill=c_main)
-    wind_end = wind_x + draw.textbbox((0,0), f"{wind}KM/H", font=f_value)[2]
-    
-    # Pára
-    x = wind_end + 50
-    if humid_icon:
-        img.paste(humid_icon, (x, mid_y - 45), humid_icon)
-        humid_x = x + 40
-    else:
-        humid_x = x
-    draw.text((humid_x, mid_y - 42), f"{humidity}%", font=f_value, fill=c_main)
-    
-    block3_w = (humid_x + draw.textbbox((0,0), f"{humidity}%", font=f_value)[2]) - (x - 100)
-    x += block3_w + 40
-    draw_divider(draw, x, y_top, y_bot, c_div)
-    x += 30
+    draw_divider(draw, POS_FORECAST - 25, y_top, y_bot, c_div)
 
     # ==================== 4. Előrejelzés ====================
-    napok = ["HE", "KE", "SZE", "CS", "PE", "SZO", "VA"]
-    for entry in forecast_list[:4]:
+    napok = ["Hé", "Ke", "Sze", "Cs", "Pé", "Szo", "Va"]
+    for i, entry in enumerate(forecast_list[:4]):
         dt_obj = datetime.fromtimestamp(entry['dt'], tz=tz)
         day_name = napok[dt_obj.weekday()]
         f_wid = entry['weather'][0]['id']
-        f_temp_val = f"{round(entry['main']['temp'])}C"
+        f_temp_val = f"{round(entry['main']['temp'])}°C"
         f_desc = get_forecast_hu(f_wid)
         
-        # Nap neve
-        draw.text((x + 20, mid_y - 60), day_name, font=f_fc_day, fill=c_main)
+        col_x = POS_FORECAST + (i * COL_W_FORECAST)
         
-        # Ikon
+        draw.text((col_x + 20, mid_y - 55), day_name, font=f_fc_day, fill=c_main)
+        
         f_icon = load_icon(get_icon_name(f_wid, False), size=FC_ICON_SIZE)
         if f_icon:
-            img.paste(f_icon, (x + 25, mid_y - 30), f_icon)
+            img.paste(f_icon, (col_x + 15, mid_y - 30), f_icon)
         
-        # Hőmérséklet
-        draw.text((x + 20, mid_y + 20), f_temp_val, font=f_fc_tmp, fill=c_main)
-        
-        # Leírás
-        draw.text((x + 20, mid_y + 50), f_desc, font=f_fc_desc, fill=c_dim)
-        
-        x += FC_COL_WIDTH
+        draw.text((col_x + 15, mid_y + 20), f_temp_val, font=f_fc_tmp, fill=c_main)
+        draw.text((col_x + 15, mid_y + 50), f_desc, font=f_fc_desc, fill=c_dim)
 
     # ==================== 5. Frissítés ====================
     update_time = now_dt.strftime("%H:%M")
-    update_x = bx + bw - INNER_MARGIN - 60
-    
-    draw_divider(draw, update_x - 30, y_top, y_bot, c_div)
-    draw.text((update_x, mid_y - 25), "FRISSITVE", font=f_update, fill=c_dim)
-    draw.text((update_x + 10, mid_y + 5), update_time, font=f_update, fill=c_main)
+    draw_divider(draw, POS_FRISSITES - 35, y_top, y_bot, c_div)
+    draw.text((POS_FRISSITES, mid_y - 25), "Frissítve", font=f_update, fill=c_dim)
+    draw.text((POS_FRISSITES + 15, mid_y + 5), update_time, font=f_update, fill=c_main)
 
     # Mentés
     os.makedirs("images", exist_ok=True)
@@ -362,14 +299,14 @@ def main():
     image_url = f"{BASE_URL}/images/current.jpg?v={v_param}"
     weather_json = [{
         "location": CITY,
-        "title": f"{weather_hu} {temp}C",
+        "title": f"{weather_hu} {temp}°C",
         "author": "OpenWeatherMap",
         "image_url": image_url,
         "url_img": image_url
     }]
     with open("weather.json", "w", encoding="utf-8") as f:
         json.dump(weather_json, f, ensure_ascii=False, indent=2)
-    print("Kesz!")
+    print("Kész!")
 
 if __name__ == "__main__":
     main()
