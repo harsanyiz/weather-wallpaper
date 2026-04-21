@@ -1,8 +1,9 @@
 [
   {
     "location": "Budapest",
-    "title": "ESŐS 13°C",
-    "url_img": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776767586",
-    "image_url": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776767586"
+    "title": "Felhős 12C",
+    "author": "OpenWeatherMap",
+    "image_url": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776768106",
+    "url_img": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776768106"
   }
 ]
