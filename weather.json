@@ -1,1 +1,9 @@
-[{"image_url": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776765727"}]
+[
+  {
+    "location": "TEST - Budapest",
+    "title": "Részben felhős 9°C – 2026-04-21 10:05",
+    "author": "GitHub Action",
+    "url_img": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776765916622",
+    "image_url": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776765916622"
+  }
+]
