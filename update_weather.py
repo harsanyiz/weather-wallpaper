@@ -32,12 +32,15 @@ FONT_TEMP    = 90
 FONT_DESC    = 28
 FONT_LABEL   = 26
 FONT_VALUE   = 34
-FONT_UPDATE  = 18
 FONT_SUN     = 28
 FONT_FC_DAY  = 28
 FONT_FC_TMP  = 30
 FONT_FC_DSC  = 20
-FONT_NAMEDAY = 24
+FONT_NAMEDAY = 48
+FONT_UPDATE  = 26
+
+# Névnap szekció fix szélessége
+NAMEDAY_SECTION_W = 340
 # ============================================================
 
 # ---- Háttérkép mapping ----
@@ -296,9 +299,14 @@ def main():
         temp_txt = f"{temp}°C"
         draw.text((curr_x, mid_y - 88), temp_txt, font=f_t, fill=c_main)
 
-        # Érzet a leírás mellé
-        feels_txt = f"{weather_hu} érzet: {feels}°C"
-        draw.text((curr_x, mid_y + 5), feels_txt, font=f_d, fill=c_dim)
+        # Érzet a leírás mellé - ikon + szöveg
+        feels_icon = load_icon("thermometer", size=28)
+        feels_label = f"érzet: {feels}°C"
+        feels_x = curr_x
+        if feels_icon:
+            img.paste(feels_icon, (feels_x, mid_y + 6), feels_icon)
+            feels_x += 32
+        draw.text((feels_x, mid_y + 5), f"{weather_hu}  {feels_label}", font=f_d, fill=c_dim)
 
         temp_w = draw.textbbox((0, 0), temp_txt, font=f_t)[2]
         icon_img = load_icon(today_icon_name)
@@ -311,7 +319,7 @@ def main():
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
         curr_x += 36
 
-        # ── SZEKCIÓ 2: NAPKELTE/NAPNYUGTA (középre) ─────────────────
+        # ── SZEKCIÓ 2: NAPKELTE/NAPNYUGTA ─────────────────────────────
         SUN_ICON_SIZE = 28
         
         day_icon   = load_icon("day_clear", size=SUN_ICON_SIZE)
@@ -343,19 +351,34 @@ def main():
             img.paste(night_icon, (rx, mid_y - 20), night_icon)
         draw.text((rx + SUN_ICON_SIZE + 8, mid_y - 20), sunset_str, font=f_s, fill=c_main)
         
-        # ── SZEKCIÓ 3: SZÉL + PÁRA (középre) ────────────────────────
-        wind_txt = f"szél: {wind} km/h"
-        hum_txt  = f"pára: {humidity}%"
-        
-        wind_w = draw.textbbox((0, 0), wind_txt, font=f_d)[2]
-        hum_w  = draw.textbbox((0, 0), hum_txt, font=f_d)[2]
-        space_w = draw.textbbox((0, 0), "  ", font=f_d)[2]
-        
-        total_w2 = wind_w + space_w + hum_w
+        # ── SZEKCIÓ 3: SZÉL + PÁRA (ikon + szöveg, középre) ─────────
+        WIND_ICON_SIZE = 26
+        wind_icon = load_icon("wind", size=WIND_ICON_SIZE)
+        hum_icon  = load_icon("humidity", size=WIND_ICON_SIZE)
+
+        wind_label = f"{wind} km/h"
+        hum_label  = f"{humidity}%"
+
+        wind_lw = draw.textbbox((0, 0), wind_label, font=f_d)[2]
+        hum_lw  = draw.textbbox((0, 0), hum_label,  font=f_d)[2]
+        gap = 32  # ikon + kis köz
+
+        block_wind_w = WIND_ICON_SIZE + 6 + wind_lw
+        block_hum_w  = WIND_ICON_SIZE + 6 + hum_lw
+        between = 28
+        total_w2 = block_wind_w + between + block_hum_w
         info_x = curr_x + (available_width - total_w2) // 2
-        
-        draw.text((info_x, mid_y + 15), wind_txt, font=f_d, fill=c_dim)
-        draw.text((info_x + wind_w + space_w, mid_y + 15), hum_txt, font=f_d, fill=c_dim)
+
+        row_y = mid_y + 16
+        wx = info_x
+        if wind_icon:
+            img.paste(wind_icon, (wx, row_y + 1), wind_icon)
+        draw.text((wx + WIND_ICON_SIZE + 6, row_y), wind_label, font=f_d, fill=c_dim)
+
+        hx = info_x + block_wind_w + between
+        if hum_icon:
+            img.paste(hum_icon, (hx, row_y + 1), hum_icon)
+        draw.text((hx + WIND_ICON_SIZE + 6, row_y), hum_label, font=f_d, fill=c_dim)
         
         curr_x = next_divider_x
         draw_divider(draw, curr_x, y_top, y_bot, c_div)
@@ -387,8 +410,13 @@ def main():
                     break
             fc_entries.sort(key=lambda x: x[0])
         
+        # Fix szélességű névnap szekció a jobb oldalon
         widget_right = OFFSET_LEFT + WIDGET_WIDTH - INNER_MARGIN
-        fc_available = widget_right - curr_x - 200
+        nameday_section_w = NAMEDAY_SECTION_W
+        
+        # Forecast: a névnap szekció előtt ér véget, + elválasztó előtt 36px
+        fc_end_x = widget_right - nameday_section_w - 36 - 6
+        fc_available = fc_end_x - curr_x
         fc_col_w = min(FC_COL_WIDTH, fc_available // 4)
         
         for dt, entry in fc_entries[:4]:
@@ -416,18 +444,28 @@ def main():
             
             curr_x += fc_col_w
         
+        # Elválasztó a forecast és névnap szekció között
+        draw_divider(draw, fc_end_x + 6, y_top, y_bot, c_div)
+        nameday_x = fc_end_x + 6 + 36
+
         # ── SZEKCIÓ 5: NÉVNAPOK + FRISSÍTVE ─────────────────────────
-        # Névnapok egy sorban, jobbra igazítva
+        # Névnapok nagy betűvel, középre igazítva a szekción belül
+        nd_cx = nameday_x + (widget_right - nameday_x) // 2  # szekció közepe
+        
         if nameday_one_line:
-            nameday_w = draw.textbbox((0, 0), nameday_one_line, font=f_n)[2]
+            upd_text = f"Frissítve: {local_now.strftime('%H:%M')}"
+            
+            # Névnap - dupla méret, középre
+            nd_w = draw.textbbox((0, 0), nameday_one_line, font=f_n)[2]
+            draw.text((nd_cx - nd_w // 2, mid_y - 54), nameday_one_line, font=f_n, fill=c_main)
+            
+            # Frissítés - nagyobb betű, középre, alul
+            upd_w = draw.textbbox((0, 0), upd_text, font=f_u)[2]
+            draw.text((nd_cx - upd_w // 2, y_bot - 32), upd_text, font=f_u, fill=c_dim)
+        else:
             upd_text = f"Frissítve: {local_now.strftime('%H:%M')}"
             upd_w = draw.textbbox((0, 0), upd_text, font=f_u)[2]
-            
-            max_w = max(nameday_w, upd_w)
-            right_x = widget_right - max_w
-            
-            draw.text((right_x, y_bot - 50), nameday_one_line, font=f_n, fill=c_dim)
-            draw.text((right_x, y_bot - 20), upd_text, font=f_u, fill=c_main)
+            draw.text((nd_cx - upd_w // 2, mid_y - 13), upd_text, font=f_u, fill=c_dim)
         
         # ── MENTÉS ───────────────────────────────────────────────────
         os.makedirs("images", exist_ok=True)
