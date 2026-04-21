@@ -2,117 +2,260 @@
 import os
 import sys
 import time
-import random
-from PIL import Image, ImageDraw, ImageFont
+import json
+import math
+import requests
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageStat
 
-print("=== TESZT SZKIPT INDIÍTÁSA ===")
+GITHUB_USER = "harsanyiz"
+GITHUB_REPO = "weather-wallpaper"
+BRANCH = "main"
+BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}"
 
-try:
-    from PIL import Image, ImageDraw, ImageFont
-    print("✓ PIL (Pillow) sikeresen betöltve")
-except ImportError as e:
-    print(f"✗ PIL Import hiba: {e}")
-    sys.exit(1)
+# ============================================================
+# KONFIGURÁCIÓ
+# ============================================================
+WIDGET_WIDTH  = 2200
+WIDGET_HEIGHT = 220
+WIDGET_Y      = 80
+OFFSET_LEFT   = 135
+INNER_MARGIN  = 80
 
-try:
-    # Mappa létrehozása
-    os.makedirs("images", exist_ok=True)
-    
-    # Kép mérete
-    width, height = 3840, 2160
-    
-    # Véletlenszerű színű háttér
-    random_color = (random.randint(0,255), random.randint(0,255), random.randint(0,255))
-    img = Image.new('RGB', (width, height), color=random_color)
-    draw = ImageDraw.Draw(img)
-    
-    # Betűtípus keresés (nagy méretben)
-    font_paths = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
-        "/System/Library/Fonts/Helvetica.ttc",
+FONT_TEMP   = 90
+FONT_DESC   = 32
+FONT_LABEL  = 28
+FONT_VALUE  = 36
+FONT_UPDATE = 24
+FONT_SUN    = 22
+
+ICON_SIZE = 80  # px – 512x512 PNG → 80x80
+# ============================================================
+
+print("=== TEST_OVERFLIGHT INDÍTÁSA ===")
+
+os.makedirs("images", exist_ok=True)
+
+# ----------------------------------------------------------------
+# SEGÉDFÜGGVÉNYEK
+# ----------------------------------------------------------------
+def find_font(bold=False):
+    paths = [
+        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf"    if bold else "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     ]
-    
-    font_size = 120  # NAGY betűméret
-    font = None
-    for path in font_paths:
-        if os.path.exists(path):
-            try:
-                font = ImageFont.truetype(path, font_size)
-                print(f"✓ Betűtípus betöltve: {path}")
-                break
-            except:
-                continue
-    
-    if font is None:
-        font = ImageFont.load_default()
-        print("✓ Alapértelmezett betűtípus")
-    
-    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-    unique_id = int(time.time() * 1000)
-    
-    # Szövegek - MOST KÖZÉPRE IGAZÍTVA és NAGYON
-    center_x = width // 2
-    center_y = height // 2
-    
-    # 1. sor (fent)
-    text1 = f"TEST IMAGE - {timestamp}"
-    bbox1 = draw.textbbox((0, 0), text1, font=font)
-    w1 = bbox1[2] - bbox1[0]
-    draw.text((center_x - w1//2, 200), text1, fill=(255, 255, 255), font=font)
-    
-    # 2. sor (középen)
-    text2 = f"Unique ID: {unique_id}"
-    bbox2 = draw.textbbox((0, 0), text2, font=font)
-    w2 = bbox2[2] - bbox2[0]
-    draw.text((center_x - w2//2, center_y - 100), text2, fill=(255, 255, 255), font=font)
-    
-    # 3. sor (lent)
-    text3 = f"Random color: {random_color}"
-    bbox3 = draw.textbbox((0, 0), text3, font=font)
-    w3 = bbox3[2] - bbox3[0]
-    draw.text((center_x - w3//2, height - 300), text3, fill=(255, 255, 255), font=font)
-    
-    # Extra: nagy cím a tetején
-    title_font_size = 180
-    for path in font_paths:
-        if os.path.exists(path):
-            try:
-                title_font = ImageFont.truetype(path, title_font_size)
-                break
-            except:
-                continue
-    else:
-        title_font = ImageFont.load_default()
-    
-    title_text = "OVERFLIGHT TEST"
-    title_bbox = draw.textbbox((0, 0), title_text, font=title_font)
-    title_w = title_bbox[2] - title_bbox[0]
-    draw.text((center_x - title_w//2, 100), title_text, fill=(255, 255, 0), font=title_font)
-    
-    # Mentés
-    output_path = "images/current.jpg"
-    img.save(output_path, "JPEG", quality=95)
-    print(f"✓ Kép mentve: {output_path} (méret: {os.path.getsize(output_path)} bytes)")
-    
-    # weather.json frissítés
-    import json
-    weather_json = [{
-        "location": "TEST",
-        "title": f"Test {timestamp}",
-        "author": "GitHub Action",
-        "image_url": f"https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v={unique_id}",
-        "url_img": f"https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v={unique_id}"
-    }]
-    
-    with open("weather.json", "w", encoding="utf-8") as f:
-        json.dump(weather_json, f, indent=2)
-    print("✓ weather.json frissítve")
-    
-    print("=== KÉSZ ===")
-    
-except Exception as e:
-    print(f"✗ HIBA: {e}")
-    import traceback
-    traceback.print_exc()
-    sys.exit(1)
+    for p in paths:
+        if os.path.exists(p): return p
+    return None
+
+def get_f(size, bold=False):
+    p = find_font(bold)
+    if p: return ImageFont.truetype(p, size)
+    return ImageFont.load_default()
+
+def get_text_colors(brightness):
+    if brightness > 145:
+        return {"main": (0,0,0,230), "dim": (0,0,0,140), "line": (0,0,0)}
+    return {"main": (255,255,255,255), "dim": (255,255,255,160), "line": (255,255,255)}
+
+def draw_glass_bar(img, bx, by, bw, bh):
+    region  = img.crop((bx, by, bx+bw, by+bh))
+    blurred = region.filter(ImageFilter.GaussianBlur(30))
+    mask    = Image.new("L", (bw, bh), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, bw, bh), radius=30, fill=180)
+    overlay = Image.new("RGBA", (bw, bh), (0, 0, 10, 100))
+    blurred = blurred.convert("RGBA")
+    blurred.putalpha(mask)
+    result  = Image.alpha_composite(blurred, overlay)
+    img.paste(result, (bx, by), result)
+    return img
+
+def draw_separator(img, x, y_top, y_bot, color_rgb, max_alpha=160, gap=4):
+    """Penge-szerű gradiens elválasztó – szinuszos alpha, dupla vonal."""
+    height = y_bot - y_top
+    pixels = img.load()
+    iw, ih = img.size
+    for i in range(height):
+        alpha = int(math.sin(i / height * math.pi) * max_alpha)
+        r, g, b = color_rgb
+        for dx in (0, gap):
+            px = x + dx
+            if 0 <= px < iw and 0 <= y_top + i < ih:
+                br, bg, bb, ba = img.getpixel((px, y_top + i))
+                a = alpha / 255.0
+                pixels[px, y_top + i] = (
+                    int(br*(1-a) + r*a),
+                    int(bg*(1-a) + g*a),
+                    int(bb*(1-a) + b*a),
+                    ba
+                )
+
+def load_icon(name):
+    """PNG ikon letöltése a repóból, ICON_SIZE x ICON_SIZE RGBA."""
+    url = f"{BASE_URL}/images/PNG/{name}.png"
+    try:
+        r = requests.get(url, timeout=10)
+        r.raise_for_status()
+        icon = Image.open(BytesIO(r.content)).convert("RGBA")
+        icon = icon.resize((ICON_SIZE, ICON_SIZE), Image.Resampling.LANCZOS)
+        print(f"✓ Ikon betöltve: {name}.png → {ICON_SIZE}x{ICON_SIZE}")
+        return icon
+    except Exception as e:
+        print(f"✗ Ikon hiba ({name}): {e}")
+        return None
+
+def paste_icon(img, icon, cx, cy):
+    """Ikon beillesztése – cx/cy a középpont."""
+    if icon is None:
+        return
+    x = cx - ICON_SIZE // 2
+    y = cy - ICON_SIZE // 2
+    img.paste(icon, (x, y), icon)
+
+# ----------------------------------------------------------------
+# HÁTTÉR – sötétkék gradiens tesztkép
+# ----------------------------------------------------------------
+width, height = 3840, 2160
+img = Image.new("RGB", (width, height), (15, 25, 45))
+draw_bg = ImageDraw.Draw(img)
+for y in range(height):
+    t = y / height
+    draw_bg.line([(0, y), (width, y)], fill=(
+        int(15 + t*10), int(25 + t*15), int(45 + t*30)
+    ))
+print("✓ Háttér generálva")
+
+# ----------------------------------------------------------------
+# IKON BETÖLTÉSE
+# ----------------------------------------------------------------
+icon_cloudy = load_icon("cloudy")
+
+# ----------------------------------------------------------------
+# GLASS BAR
+# ----------------------------------------------------------------
+bx = OFFSET_LEFT
+by = WIDGET_Y
+bw = WIDGET_WIDTH
+bh = WIDGET_HEIGHT
+
+img = img.convert("RGBA")
+img = draw_glass_bar(img, bx, by, bw, bh)
+
+region = img.crop((bx, by, bx+bw, by+bh)).convert("L")
+colors = get_text_colors(ImageStat.Stat(region).mean[0])
+
+draw = ImageDraw.Draw(img)
+f_t  = get_f(FONT_TEMP,   True)
+f_d  = get_f(FONT_DESC)
+f_l  = get_f(FONT_LABEL)
+f_v  = get_f(FONT_VALUE,  True)
+f_u  = get_f(FONT_UPDATE)
+f_s  = get_f(FONT_SUN)
+
+curr_x = int(bx + INNER_MARGIN)
+mid_y  = int(by + bh // 2)
+
+sep_color = colors["line"]
+def sep():
+    global curr_x
+    draw_separator(img, curr_x, by+20, by+bh-20, sep_color, max_alpha=160, gap=4)
+    curr_x += 40
+
+# ----------------------------------------------------------------
+# 1. SZEKCIÓ – NAP + HŐMÉRSÉKLET + IKON + LEÍRÁS
+# ----------------------------------------------------------------
+day_txt  = "KEDD"
+temp_txt = "9°C"
+desc_txt = "RÉSZBEN FELHŐS"
+
+day_w  = draw.textbbox((0,0), day_txt,  font=f_l)[2]
+temp_w = draw.textbbox((0,0), temp_txt, font=f_t)[2]
+desc_w = draw.textbbox((0,0), desc_txt, font=f_d)[2]
+max_w  = max(day_w, temp_w, desc_w)
+
+draw.text((int(curr_x + (max_w-day_w)  / 2), int(mid_y - 90)), day_txt,  font=f_l, fill=colors["dim"])
+draw.text((int(curr_x + (max_w-temp_w) / 2), int(mid_y - 62)), temp_txt, font=f_t, fill=colors["main"])
+draw.text((int(curr_x + (max_w-desc_w) / 2), int(mid_y + 38)), desc_txt, font=f_d, fill=colors["dim"])
+
+# Ikon: hőfok jobb oldalán, függőlegesen középre
+icon_x = int(curr_x + max_w + 30 + ICON_SIZE // 2)
+paste_icon(img, icon_cloudy, icon_x, mid_y - 10)
+curr_x += int(max_w + 30 + ICON_SIZE + 30)
+sep()
+
+# ----------------------------------------------------------------
+# 2. SZEKCIÓ – ÉRZET / SZÉL / PÁRA
+# ----------------------------------------------------------------
+fields = [("Érzet", "7°C"), ("Szél", "16 km/h"), ("Pára", "67%")]
+for label, val in fields:
+    lw = draw.textbbox((0,0), label.upper(), font=f_l)[2]
+    vw = draw.textbbox((0,0), val,           font=f_v)[2]
+    draw.text((curr_x, int(mid_y - 48)), label.upper(), font=f_l, fill=colors["dim"])
+    draw.text((curr_x, int(mid_y + 2)),  val,           font=f_v, fill=colors["main"])
+    curr_x += max(lw, vw) + 70
+sep()
+
+# ----------------------------------------------------------------
+# 3. SZEKCIÓ – NAPKELTE / NAPNYUGTA
+# ----------------------------------------------------------------
+sun_label = "NAPKELTE / NAPNYUGTA"
+sun_val   = "05:44  •  19:40"
+slw = draw.textbbox((0,0), sun_label, font=f_s)[2]
+svw = draw.textbbox((0,0), sun_val,   font=f_v)[2]
+col_w = max(slw, svw)
+draw.text((int(curr_x + (col_w-slw)/2), int(mid_y - 48)), sun_label, font=f_s, fill=colors["dim"])
+draw.text((int(curr_x + (col_w-svw)/2), int(mid_y + 2)),  sun_val,   font=f_v, fill=colors["main"])
+curr_x += col_w + 70
+sep()
+
+# ----------------------------------------------------------------
+# 4. SZEKCIÓ – 3 NAPOS ELŐREJELZÉS ikonnal
+# ----------------------------------------------------------------
+forecast = [
+    ("SZE", "15°C", "BORULT", icon_cloudy),
+    ("CSÜ", "16°C", "BORULT", icon_cloudy),
+    ("PÉN", "16°C", "BORULT", icon_cloudy),
+]
+for d_name, f_val, f_desc, f_icon in forecast:
+    nw    = draw.textbbox((0,0), d_name, font=f_l)[2]
+    vw    = draw.textbbox((0,0), f_val,  font=f_v)[2]
+    dw    = draw.textbbox((0,0), f_desc, font=f_s)[2]
+    col_w = max(nw, vw, dw, ICON_SIZE)
+
+    # Ikon középen, szövegek alatta
+    paste_icon(img, f_icon, int(curr_x + col_w//2), int(mid_y - 55))
+    draw.text((int(curr_x + (col_w-nw)/2), int(mid_y + 2)),  d_name, font=f_l, fill=colors["dim"])
+    draw.text((int(curr_x + (col_w-vw)/2), int(mid_y + 35)), f_val,  font=f_v, fill=colors["main"])
+    draw.text((int(curr_x + (col_w-dw)/2), int(mid_y + 80)), f_desc, font=f_s, fill=colors["dim"])
+    curr_x += col_w + 55
+sep()
+
+# ----------------------------------------------------------------
+# 5. FRISSÍTÉS
+# ----------------------------------------------------------------
+update_txt = f"FRISSÍTVE\n{time.strftime('%H:%M')}"
+draw.text((curr_x + 10, int(mid_y - 30)), update_txt, font=f_u, fill=colors["dim"])
+
+# ----------------------------------------------------------------
+# MENTÉS
+# ----------------------------------------------------------------
+output_path = "images/current.jpg"
+img.convert("RGB").save(output_path, "JPEG", quality=95, subsampling=0)
+print(f"✓ Kép mentve: {output_path} ({os.path.getsize(output_path):,} bytes)")
+
+# ----------------------------------------------------------------
+# WEATHER.JSON
+# ----------------------------------------------------------------
+unique_id = int(time.time() * 1000)
+weather_json = [{
+    "location": "TEST - Budapest",
+    "title": f"Részben felhős 9°C – {time.strftime('%Y-%m-%d %H:%M')}",
+    "author": "GitHub Action",
+    "url_img":   f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images/current.jpg?v={unique_id}",
+    "image_url": f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/images/current.jpg?v={unique_id}"
+}]
+with open("weather.json", "w", encoding="utf-8") as f:
+    json.dump(weather_json, f, ensure_ascii=False, indent=2)
+print("✓ weather.json frissítve")
+
+print("=== KÉSZ ===")
