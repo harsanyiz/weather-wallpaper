@@ -2,11 +2,10 @@
 import os
 import sys
 import time
+import random
+from PIL import Image, ImageDraw
 
 print("=== TESZT SZKIPT INDIÍTÁSA ===")
-print(f"Python verzió: {sys.version}")
-print(f"Aktuális könyvtár: {os.getcwd()}")
-print(f"Fájl létezik? {os.path.exists('test_overflight.py')}")
 
 try:
     from PIL import Image, ImageDraw
@@ -16,61 +15,44 @@ except ImportError as e:
     sys.exit(1)
 
 try:
-    # 1. Mappa létrehozása
-    print("\n1. Mappa ellenőrzés...")
+    # Mappa létrehozása
     os.makedirs("images", exist_ok=True)
-    print(f"   ✓ images mappa létezik: {os.path.exists('images')}")
     
-    # 2. Kép generálása
-    print("\n2. Kép generálása...")
+    # Véletlenszerű színű kép
     width, height = 3840, 2160
-    img = Image.new('RGB', (width, height), color=(73, 109, 137))
+    random_color = (random.randint(0,255), random.randint(0,255), random.randint(0,255))
+    img = Image.new('RGB', (width, height), color=random_color)
     draw = ImageDraw.Draw(img)
     
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-    draw.text((100, 100), f"TEST IMAGE - {timestamp}", fill=(255, 255, 255))
-    draw.text((100, 200), "Overflight Plugin Test", fill=(255, 255, 255))
-    print(f"   ✓ Kép mérete: {width}x{height}")
+    unique_id = int(time.time() * 1000)  # Egyedi ID
     
-    # 3. Mentés
-    print("\n3. Kép mentése...")
+    # Szövegek
+    draw.text((100, 100), f"TEST IMAGE - {timestamp}", fill=(255, 255, 255))
+    draw.text((100, 200), f"Unique ID: {unique_id}", fill=(255, 255, 255))
+    draw.text((100, 300), f"Random color: {random_color}", fill=(255, 255, 255))
+    
+    # Mentés
     output_path = "images/current.jpg"
     img.save(output_path, "JPEG", quality=95)
-    print(f"   ✓ Mentve: {output_path}")
+    print(f"✓ Kép mentve: {output_path} (méret: {os.path.getsize(output_path)} bytes)")
     
-    # 4. Ellenőrzés
-    print("\n4. Fájl ellenőrzés...")
-    if os.path.exists(output_path):
-        size = os.path.getsize(output_path)
-        print(f"   ✓ Fájl létezik, mérete: {size} bytes")
-        
-        # Mappa tartalmának listázása
-        print("\n5. images mappa tartalma:")
-        for f in os.listdir("images"):
-            print(f"   - {f}")
-    else:
-        print(f"   ✗ A fájl NEM létezik: {output_path}")
-        sys.exit(1)
-    
-    # 6. weather.json frissítés
-    print("\n6. weather.json frissítés...")
+    # weather.json frissítés
     import json
     weather_json = [{
         "location": "TEST",
         "title": f"Test {timestamp}",
         "author": "GitHub Action",
-        "image_url": f"https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v={int(time.time())}",
-        "url_img": f"https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v={int(time.time())}"
+        "image_url": f"https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v={unique_id}",
+        "url_img": f"https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v={unique_id}"
     }]
     
     with open("weather.json", "w", encoding="utf-8") as f:
         json.dump(weather_json, f, indent=2)
-    print("   ✓ weather.json mentve")
+    print("✓ weather.json frissítve")
     
-    print("\n=== KÉSZ, SIKERESEN LÉTREJÖTT A KÉP ===")
+    print("=== KÉSZ ===")
     
 except Exception as e:
-    print(f"\n✗ HIBA: {e}")
-    import traceback
-    traceback.print_exc()
+    print(f"✗ HIBA: {e}")
     sys.exit(1)
