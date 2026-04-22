@@ -23,6 +23,7 @@ def main():
         # ── Ikon letöltése GitHubról ──────────────────────────────────────────
         icon_name = get_icon_name(weather_id, is_night)
         icon_img  = download_icon(icon_name)
+        feel_icon_img = download_icon("feel")   # feel.png – érzet ikon
 
         # ── Névnapok lekérése GitHubról ───────────────────────────────────────
         namedays = get_todays_namedays()
@@ -43,6 +44,7 @@ def main():
             img=img,
             weather=weather,
             icon_img=icon_img,
+            feel_icon_img=feel_icon_img,
             namedays=namedays,
             tz_offset=weather["tz_offset"],
         )
