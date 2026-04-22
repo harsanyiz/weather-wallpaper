@@ -3,7 +3,7 @@ from datetime import datetime
 
 # --- KONFIGURÁCIÓ & MÉRETEK (4K HORIZONTÁLIS) - LUXUS KÍNAI EV STYLE ---
 WIDGET_WIDTH, WIDGET_HEIGHT, WIDGET_Y, OFFSET_LEFT, INNER_MARGIN = 2400, 200, 100, 135, 80
-FONT_TEMP, FONT_HEADER, FONT_VALUE, FONT_SMALL, FONT_DATETIME, FONT_NAME = 105, 24, 36, 30, 22, 28
+FONT_TEMP, FONT_HEADER, FONT_VALUE, FONT_SMALL, FONT_DATETIME, FONT_NAME = 104, 24, 36, 30, 22, 28  # 104 a 105 helyett (páros)
 FONT_FORECAST_DAY, FONT_FORECAST_TEMP = 22, 32
 ICON_DISPLAY_SIZE, WIND_ICON_SIZE, PARA_ICON_SIZE, FORECAST_ICON_SIZE, SUN_ICON_SIZE = 160, 36, 36, 50, 40
 
@@ -16,7 +16,16 @@ def find_font(bold=False):
 
 def get_f(size, bold=False):
     path = find_font(bold)
-    return ImageFont.truetype(path, size) if path else ImageFont.load_default()
+    if path:
+        size = size if size % 2 == 0 else size + 1  # párosra kerekítés az élességért
+        font = ImageFont.truetype(path, size)
+        # RGB anti-aliasing kényszerítése
+        try:
+            font.fontmode = "RGB"
+        except:
+            pass
+        return font
+    return ImageFont.load_default()
 
 def paste_icon(img, icon_img, x, y, size=ICON_DISPLAY_SIZE):
     if icon_img:
@@ -124,9 +133,9 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, rainq_icon_img, w
     day_w = draw.textbbox((0, 0), day_str, font=f_h)[2]
     draw.text((tx + 20 + day_w + 30, mid_y - 65), weather["weather_hu"].upper(), font=f_h, fill=colors["accent"])
     
-    # Fő Hőfok - extra glow hatás (kétszer rajzolva)
+    # Fő Hőfok - extra glow hatás + stroke az élességért
     draw.text((tx-1, ty-1), temp_txt, font=f_t, fill=(colors["accent"][0], colors["accent"][1], colors["accent"][2], 60))
-    draw.text((tx, ty), temp_txt, font=f_t, fill=colors["main"])
+    draw.text((tx, ty), temp_txt, font=f_t, fill=colors["main"], stroke_width=1, stroke_fill=colors["main"])
     
     # INFÓ OSZLOP (Eső esélye fent, Érzet lent)
     info_x = tx + t_w + 60
@@ -147,7 +156,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, rainq_icon_img, w
     for i, (val, unit, icon, sz) in enumerate([(weather['wind_kmh'], " km/h", wind1_icon_img, WIND_ICON_SIZE), (weather['humidity'], "%", para_icon_img, PARA_ICON_SIZE)]):
         y_pos = mid_y - 68 if i == 0 else mid_y + 12
         if icon: paste_icon(img, icon, ix, y_pos + 4, size=sz)
-        draw.text((ix + 58, y_pos), f"{val}{unit}", font=f_v, fill=colors["main"])
+        draw.text((ix + 58, y_pos), f"{val}{unit}", font=f_v, fill=colors["main"], stroke_width=1, stroke_fill=colors["main"])
     curr_x += SEC2_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
@@ -156,7 +165,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, rainq_icon_img, w
     for i, (val, icon) in enumerate([(weather['sunrise'], sunrise_icon_img), (weather['sunset'], sunset_icon_img)]):
         y_pos = mid_y - 65 if i == 0 else mid_y + 10
         if icon: paste_icon(img, icon, sx, y_pos + 6, size=SUN_ICON_SIZE)
-        draw.text((sx + 58, y_pos), val, font=f_v, fill=colors["main"])
+        draw.text((sx + 58, y_pos), val, font=f_v, fill=colors["main"], stroke_width=1, stroke_fill=colors["main"])
     curr_x += SEC3_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
@@ -172,7 +181,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, rainq_icon_img, w
         
         # Nap neve neonos akcentussal
         draw.text((sm - draw.textbbox((0, 0), dn, font=f_fd)[2] // 2, mid_y - 15), dn, font=f_fd, fill=colors["accent2"])
-        draw.text((sm - draw.textbbox((0, 0), fv, font=f_fv)[2] // 2, mid_y + 15), fv, font=f_fv, fill=colors["main"])
+        draw.text((sm - draw.textbbox((0, 0), fv, font=f_fv)[2] // 2, mid_y + 15), fv, font=f_fv, fill=colors["main"], stroke_width=1, stroke_fill=colors["main"])
         
         # Eső esély az előrejelzésben
         pop_val = day_entry.get('pop', 0)
