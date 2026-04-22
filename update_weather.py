@@ -20,11 +20,15 @@ def main():
         weather_id = weather["weather_id"]
         is_night   = weather["is_night"]
 
-        # ── Ikonok letöltése GitHubról ───────────────────────────────────────
+        # ── Ikonok letöltése (GitHubról vagy helyi gyorsítótárból) ────────────
         icon_name        = get_icon_name(weather_id, is_night)
         icon_img         = download_icon(icon_name)
         feel_icon_img    = download_icon("feel")
-        wind_icon_img    = download_icon("wind")
+        
+        # FRISSÍTVE: Az új ikonok hívása
+        rainq_icon_img   = download_icon("rainq")
+        wind1_icon_img   = download_icon("wind1") 
+        
         para_icon_img    = download_icon("para")
         sunrise_icon_img = download_icon("day_clear")
         sunset_icon_img  = download_icon("night_clear")
@@ -36,10 +40,10 @@ def main():
             f_icon_name = get_icon_name(f_id, is_night=False)
             forecast_icons.append(download_icon(f_icon_name))
 
-        # ── Névnapok lekérése GitHubról ───────────────────────────────────────
+        # ── Névnapok lekérése ─────────────────────────────────────────────────
         namedays = get_todays_namedays()
 
-        # ── Háttérkép betöltése és 4K-ra méretezése ──────────────────────────
+        # ── Háttérkép betöltése és méretezése ────────────────────────────────
         bg_name = get_background_image_name(weather_id, is_night)
         src = f"images/{bg_name}.jpg"
         dst = "images/current.jpg"
@@ -51,12 +55,14 @@ def main():
         img = img.convert("RGBA")
 
         # ── Widget rárajzolása ────────────────────────────────────────────────
+        # Figyelj, hogy az ui_weather.py-ban a függvény paraméterei ugyanígy legyenek!
         draw_weather_widget(
             img=img,
             weather=weather,
             icon_img=icon_img,
             feel_icon_img=feel_icon_img,
-            wind_icon_img=wind_icon_img,
+            rainq_icon_img=rainq_icon_img,     
+            wind1_icon_img=wind1_icon_img,     
             para_icon_img=para_icon_img,
             forecast_icons=forecast_icons,
             sunrise_icon_img=sunrise_icon_img,
@@ -75,7 +81,7 @@ def main():
         print("✅ weather.json frissítve")
 
     except Exception as e:
-        print(f"❌ Hiba: {e}")
+        print(f"❌ Hiba az update_weather.py-ban: {e}")
         raise
 
 
