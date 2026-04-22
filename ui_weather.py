@@ -132,7 +132,7 @@ def draw_weather_widget(
     f_fv = get_f(FONT_FORECAST_TEMP, heavy=True)
 
     # ── 1. AKTUÁLIS BLOKK ──────────────────────────────────────────────
-    SEC1_W   = 820
+    SEC1_W   = 720
     temp_txt = f"{weather['temp']}°C"
     feel_txt = f"{weather['feels_like']}°C"
     rain_txt = f"{weather.get('pop', 0)}%"
