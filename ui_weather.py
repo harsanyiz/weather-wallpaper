@@ -33,37 +33,37 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, wind_icon_img, pa
     draw, mid_y, curr_x = ImageDraw.Draw(img), by + (bh // 2), bx + INNER_MARGIN
     f_t, f_h, f_v, f_s, f_dt, f_n, f_fd, f_fv = get_f(FONT_TEMP, True), get_f(FONT_HEADER), get_f(FONT_VALUE, True), get_f(FONT_SMALL), get_f(FONT_DATETIME), get_f(FONT_NAME), get_f(FONT_FORECAST_DAY), get_f(FONT_FORECAST_TEMP, True)
 
-    # 1. AKTUÁLIS
+    # 1. AKTUÁLIS SZEKCIÓ
     SEC1_W = 720
     temp_txt, feel_txt = f"{weather['temp']}°C", f"{weather['feels_like']}°C"
     t_w = draw.textbbox((0, 0), temp_txt, font=f_t)[2]
     f_w = draw.textbbox((0, 0), feel_txt, font=f_s)[2]
-    start_x = (curr_x + SEC1_W // 2) - ((ICON_DISPLAY_SIZE + 45 + t_w + 40 + 34 + 12 + f_w) // 2)
+    start_x = (curr_x + SEC1_W // 2) - ((ICON_DISPLAY_SIZE + 45 + t_w + 45 + 34 + 12 + f_w) // 2)
     paste_icon(img, icon_img, start_x, mid_y - ICON_DISPLAY_SIZE // 2)
     tx, ty = start_x + ICON_DISPLAY_SIZE + 45, mid_y - (draw.textbbox((0, 0), temp_txt, font=f_t)[3] // 2) + 5
     draw.text((tx + 25, mid_y - 65), get_day_hu(weather["now_dt"]).upper(), font=f_h, fill=colors["dim"])
     draw.text((tx + 25 + draw.textbbox((0, 0), get_day_hu(weather["now_dt"]).upper(), font=f_h)[2] + 35, mid_y - 65), weather["weather_hu"].upper(), font=f_h, fill=colors["dim"])
     draw.text((tx, ty), temp_txt, font=f_t, fill=colors["main"])
-    if feel_icon_img: paste_icon(img, feel_icon_img, tx + t_w + 40, mid_y + 12, size=34)
-    draw.text((tx + t_w + 40 + 46, mid_y + 10), feel_txt, font=f_s, fill=colors["dim"])
+    if feel_icon_img: paste_icon(img, feel_icon_img, tx + t_w + 45, mid_y + 12, size=34)
+    draw.text((tx + t_w + 45 + 46, mid_y + 10), feel_txt, font=f_s, fill=colors["dim"])
     curr_x += SEC1_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
-    # 2. ADATOK (WIND1 + PÁRA) - 3px balra tolva
-    SEC2_W, ix = 300, curr_x + 72 # 75 helyett 72
+    # 2. ADATOK (WIND1 + PÁRA) - Szimmetrikus igazítás
+    SEC2_W, ix = 300, curr_x + 72
     for i, (val, unit, icon, sz) in enumerate([(weather['wind_kmh'], " km/h", wind_icon_img, WIND_ICON_SIZE), (weather['humidity'], "%", para_icon_img, PARA_ICON_SIZE)]):
         y_txt = mid_y - 68 if i == 0 else mid_y + 12
         if icon: paste_icon(img, icon, ix, y_txt + 4, size=sz)
-        draw.text((ix + 55, y_txt), f"{val}{unit}", font=f_v, fill=colors["main"])
+        draw.text((ix + 58, y_txt), f"{val}{unit}", font=f_v, fill=colors["main"])
     curr_x += SEC2_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
-    # 3. NAP - 3px balra tolva
-    SEC3_W, sx = 260, curr_x + 72 # 75 helyett 72
+    # 3. NAP (SUNRISE, SUNSET) - Szimmetrikus igazítás
+    SEC3_W, sx = 260, curr_x + 72
     for i, (val, icon) in enumerate([(weather['sunrise'], sunrise_icon_img), (weather['sunset'], sunset_icon_img)]):
         y_txt = mid_y - 65 if i == 0 else mid_y + 10
         if icon: paste_icon(img, icon, sx, y_txt + 6, size=SUN_ICON_SIZE)
-        draw.text((sx + 55, y_txt), val, font=f_v, fill=colors["main"])
+        draw.text((sx + 58, y_txt), val, font=f_v, fill=colors["main"])
     curr_x += SEC3_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
@@ -78,9 +78,9 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, wind_icon_img, pa
     curr_x += SEC4_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
-    # 5. NÉVNAP (3px-el lejjebb hozva a neveket)
+    # 5. NÉVNAP (Leeresztett nevek)
     draw.text((curr_x + 50, mid_y - 50), "NÉVNAP", font=f_h, fill=colors["dim"])
-    # mid_y - 10 helyett mid_y - 7, hogy nagyobb legyen a táv a címkétől
-    draw.text((curr_x + 50, mid_y - 7), ", ".join(n.strip() for n in namedays), font=f_n, fill=colors["main"])
+    # mid_y - 2-re módosítva, hogy több hely legyen a NÉVNAP felirat alatt
+    draw.text((curr_x + 50, mid_y - 2), ", ".join(n.strip() for n in namedays), font=f_n, fill=colors["main"])
     dt_txt = weather["now_dt"].strftime("%Y.%m.%d  %H:%M")
     draw.text((bx + bw - draw.textbbox((0, 0), dt_txt, font=f_dt)[2] - 80, by + 15), dt_txt, font=f_dt, fill=(160, 160, 160, 200))
