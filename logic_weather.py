@@ -21,6 +21,49 @@ def get_day_hu(date_obj):
     napok = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat", "Vasárnap"]
     return napok[date_obj.weekday()]
 
+def get_weather_icon_name(weather_id, is_night):
+    """Visszaadja az ikon fájlnevét a weather_id alapján"""
+    # Kategóriák
+    if weather_id == 800:  # Tiszta ég
+        return "day_clear.png" if not is_night else "night_clear.png"
+    elif weather_id in [801, 802]:  # Pár felhős, Részben felhős
+        return "day_partial_cloud.png" if not is_night else "night_partial_cloud.png"
+    elif weather_id in [803, 804]:  # Felhős, Borult
+        return "overcast.png"
+    elif weather_id in [300, 301, 302, 310, 311, 312, 313, 314, 321]:  # Szitálás, könnyű eső
+        return "day_rain.png" if not is_night else "night_rain.png"
+    elif weather_id in [500, 501, 502, 503, 504, 520, 521, 522, 531]:  # Eső
+        return "day_rain.png" if not is_night else "night_rain.png"
+    elif weather_id in [200, 201, 202, 210, 211, 212, 221, 230, 231, 232]:  # Zivatar
+        return "day_rain_thunder.png" if not is_night else "night_rain_thunder.png"
+    elif weather_id in [600, 601, 602, 612, 613, 615, 616, 620, 621, 622]:  # Hó
+        return "day_snow.png" if not is_night else "night_snow.png"
+    elif weather_id in [611]:  # Hóeső
+        return "day_sleet.png" if not is_night else "night_sleet.png"
+    elif weather_id in [511]:  # Ónos eső
+        return "sleet.png"
+    elif weather_id in [701, 721, 741]:  # Köd, pára
+        return "fog.png"
+    elif weather_id in [711, 731, 751, 761, 762, 771, 781]:  # Por, homok, füst, tornádó
+        return "tornado.png"
+    else:
+        return "cloudy.png"  # Alapértelmezett
+
+def get_name_day():
+    """Lekéri a mai névnapot a névnap API-ból"""
+    try:
+        today = datetime.now().strftime("%m-%d")
+        # Ingyenes névnap API (köszi névnap.hu publikus endpoint)
+        url = f"https://unnepnapok.pythonanywhere.com/api/namedays?date={today}&lang=hu"
+        resp = requests.get(url, timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get("namedays"):
+                return ", ".join(data["namedays"][:3])  # Maximum 3 név
+    except Exception as e:
+        print(f"Névnap lekérési hiba: {e}")
+    return ""
+
 def fetch_weather_data():
     """Lekéri az aktuális időjárást és a 3 napos előrejelzést"""
     resp = requests.get(f"https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric")
@@ -36,6 +79,8 @@ def fetch_weather_data():
     is_night = now_dt.timestamp() < data["sys"]["sunrise"] or now_dt.timestamp() > data["sys"]["sunset"]
     image_name = get_image_name(weather_id, is_night)
     weather_hu = get_weather_hu(weather_id)
+    icon_name = get_weather_icon_name(weather_id, is_night)
+    name_day = get_name_day()
 
     # Következő 3 nap délutáni adatai
     forecast_list = []
@@ -62,6 +107,8 @@ def fetch_weather_data():
         "day_name": get_day_hu(now_dt),
         "is_night": is_night,
         "image_name": image_name,
+        "icon_name": icon_name,
+        "name_day": name_day,
         "tz_offset": tz_offset
     }
     
