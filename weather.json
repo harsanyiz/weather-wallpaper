@@ -1,8 +1,9 @@
 [
   {
     "location": "Budapest",
-    "title": "Derült • 12°C",
-    "author": "OpenWeatherMap",
-    "url_img": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg"
+    "title": "Pár felhő 9C",
+    "author": "Gemini Design",
+    "image_url": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776840578",
+    "url_img": "https://raw.githubusercontent.com/harsanyiz/weather-wallpaper/main/images/current.jpg?v=1776840578"
   }
 ]
