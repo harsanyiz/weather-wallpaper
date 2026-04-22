@@ -105,8 +105,8 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, rainq_icon_img, w
     
     draw = ImageDraw.Draw(img)
     
-    # GRADIENT HÁTTÉR - 10 pixel balra tolás
-    gradient_start_x = bx - 10
+    # GRADIENT HÁTTÉR - 10 pixel JOBBRA tolás (bx + 10)
+    gradient_start_x = bx + 10
     for y in range(by, by + bh):
         ratio = (y - by) / bh
         r = int(colors["bg_start"][0] * (1 - ratio) + colors["bg_end"][0] * ratio)
@@ -128,7 +128,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, rainq_icon_img, w
     f_fd = get_f(FONT_FORECAST_DAY, bold=True)
     f_fv = get_f(FONT_FORECAST_TEMP, heavy=True)
 
-    # 1. AKTUÁLIS BLOKK
+    # 1. AKTUÁLIS BLOKK (HŐFOK + ESŐ/ÉRZET EGYMÁS FELETT)
     SEC1_W = 820
     temp_txt = f"{weather['temp']}°C"
     feel_txt = f"{weather['feels_like']}°C"
@@ -144,7 +144,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, rainq_icon_img, w
     tx = start_x + ICON_DISPLAY_SIZE + 40
     ty = mid_y - (t_bbox[3] // 2) + 5
     
-    # Fejléc
+    # Fejléc (NAP + ÁLLAPOT)
     day_str = get_day_hu(weather["now_dt"]).upper()
     draw.text((tx + 20, mid_y - 65), day_str, font=f_h, fill=colors["accent2"])
     day_w = draw.textbbox((0, 0), day_str, font=f_h)[2]
@@ -153,7 +153,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, rainq_icon_img, w
     # Fő Hőfok
     draw.text((tx, ty), temp_txt, font=f_t, fill=colors["main"])
     
-    # Infó oszlop
+    # INFÓ OSZLOP (Eső esélye fent, Érzet lent)
     info_x = tx + t_w + 60
     
     if rainq_icon_img:
@@ -189,7 +189,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, rainq_icon_img, w
     curr_x += SEC3_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
-    # 4. ELŐREJELZÉS
+    # 4. ELŐREJELZÉS (3 NAP)
     SEC4_W = 540
     slot_w = 180
     for i, day_entry in enumerate(weather["forecast"]):
