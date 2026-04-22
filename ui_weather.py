@@ -2,7 +2,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageStat
 from datetime import datetime, timezone, timedelta
 
 # ============================================================
-# 4K-S HORIZONTÁLIS DESIGN - GEMINI EDITION (FINAL REFINEMENT)
+# 4K-S HORIZONTÁLIS DESIGN - GEMINI EDITION (FINAL PIXEL-PERFECT)
 # ============================================================
 WIDGET_WIDTH  = 2400
 WIDGET_HEIGHT = 200
@@ -91,7 +91,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     tx = start_x + ICON_DISPLAY_SIZE + 45
     temp_y = mid_y - (t_h // 2) + 5
 
-    # --- FEJLÉC IGAZÍTÁSA (8 km/h magasságához + 3px eltolás jobbra) ---
+    # --- FEJLÉC IGAZÍTÁSA (+3px ELTOLÁS JOBBRA) ---
     header_y = mid_y - 62 
     header_x = tx + 3 
     
@@ -112,17 +112,30 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     curr_x += SEC1_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
-    # ── SZEKCIÓ 2 & 3: ADATOK (Szél, Pára, Nap) ───────────────────────────
+    # ── SZEKCIÓ 2 & 3: ADATOK (IKON-SZIMMETRIA JAVÍTVA) ───────────────────
+    # Itt az item_x-et fixáljuk az ikonokhoz, hogy egy oszlopba essenek
     for data_w, items in [(260, [(weather['wind_kmh'], " km/h", wind_icon_img), (weather['humidity'], "%", para_icon_img)]),
                          (240, [(weather['sunrise'], "", sunrise_icon_img), (weather['sunset'], "", sunset_icon_img)])]:
         sec_mid = curr_x + (data_w // 2)
+        
+        # Kiszámoljuk a blokk teljes szélességét a legszélesebb szöveg alapján az oszlopban
+        max_v_w = 0
+        for val, unit, _ in items:
+            max_v_w = max(max_v_w, draw.textbbox((0, 0), f"{val}{unit}", font=f_v)[2])
+        
+        # A fix kezdőpont az ikonoknak, hogy szimmetrikusan középen legyen a csoport
+        group_w = WIND_ICON_SIZE + 12 + max_v_w
+        icon_x_fix = sec_mid - (group_w // 2)
+
         for i, (val, unit, icon) in enumerate(items):
             txt = f"{val}{unit}"
-            v_w = draw.textbbox((0, 0), txt, font=f_v)[2]
-            item_x = sec_mid - ((WIND_ICON_SIZE + 12 + v_w) // 2)
             y_pos = mid_y - 65 if i == 0 else mid_y + 10
-            if icon: paste_icon(img, icon, item_x, y_pos + 5, size=WIND_ICON_SIZE)
-            draw.text((item_x + WIND_ICON_SIZE + 12, y_pos), txt, font=f_v, fill=colors["main"])
+            
+            # Az ikon mindig ugyanazon az X koordinátán (icon_x_fix) kezdődik
+            if icon: paste_icon(img, icon, icon_x_fix, y_pos + 5, size=WIND_ICON_SIZE)
+            # A szöveg pedig fix távolságra az ikontól
+            draw.text((icon_x_fix + WIND_ICON_SIZE + 12, y_pos), txt, font=f_v, fill=colors["main"])
+            
         curr_x += data_w
         draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
