@@ -144,7 +144,7 @@ def draw_weather_widget(
                 "dim":      (120, 110, 140, 200),
                 "line":     (0,   0,   0,   12),
                 "accent":   (255, 100, 50,  255),
-                "accent2":  (0,   200, 180, 255),
+                "accent2":  (0,   150, 255, 255),  # kékes (cián/kék)
             }
         else:
             colors = {
@@ -152,7 +152,7 @@ def draw_weather_widget(
                 "dim":      (150, 155, 180, 200),
                 "line":     (100, 150, 255, 30),
                 "accent":   (0,   230, 200, 255),
-                "accent2":  (180, 100, 255, 255),
+                "accent2":  (0,   160, 255, 255),  # kékes (égszínkék)
             }
     else:
         # Ha nincs háttérkép, használd a gradiens megoldást
@@ -165,7 +165,7 @@ def draw_weather_widget(
                 "dim":      (120, 110, 140, 200),
                 "line":     (0,   0,   0,   12),
                 "accent":   (255, 100, 50,  255),
-                "accent2":  (0,   200, 180, 255),
+                "accent2":  (0,   150, 255, 255),  # kékes
                 "bg_start": (255, 255, 245, 220),
                 "bg_end":   (245, 240, 255, 220),
             }
@@ -175,7 +175,7 @@ def draw_weather_widget(
                 "dim":      (150, 155, 180, 200),
                 "line":     (100, 150, 255, 30),
                 "accent":   (0,   230, 200, 255),
-                "accent2":  (180, 100, 255, 255),
+                "accent2":  (0,   160, 255, 255),  # kékes
                 "bg_start": (18,  18,  28,  210),
                 "bg_end":   (28,  18,  38,  210),
             }
