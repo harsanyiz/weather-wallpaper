@@ -55,6 +55,9 @@ def get_weather_data():
         if len(forecast_list) == 3:
             break
 
+    sunrise_dt = datetime.fromtimestamp(data["sys"]["sunrise"], tz=timezone(timedelta(seconds=tz_offset)))
+    sunset_dt  = datetime.fromtimestamp(data["sys"]["sunset"],  tz=timezone(timedelta(seconds=tz_offset)))
+
     return {
         "temp": round(data["main"]["temp"]),
         "feels_like": round(data["main"]["feels_like"]),
@@ -65,6 +68,8 @@ def get_weather_data():
         "is_night": is_night,
         "now_dt": now_dt,
         "update_time": now_dt.strftime("%H:%M"),
+        "sunrise": sunrise_dt.strftime("%H:%M"),
+        "sunset":  sunset_dt.strftime("%H:%M"),
         "forecast": forecast_list,
         "tz_offset": tz_offset,
     }
