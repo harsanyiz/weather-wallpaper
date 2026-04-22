@@ -33,7 +33,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, wind_icon_img, pa
     draw, mid_y, curr_x = ImageDraw.Draw(img), by + (bh // 2), bx + INNER_MARGIN
     f_t, f_h, f_v, f_s, f_dt, f_n, f_fd, f_fv = get_f(FONT_TEMP, True), get_f(FONT_HEADER), get_f(FONT_VALUE, True), get_f(FONT_SMALL), get_f(FONT_DATETIME), get_f(FONT_NAME), get_f(FONT_FORECAST_DAY), get_f(FONT_FORECAST_TEMP, True)
 
-    # 1. AKTUÁLIS + FEEL IKON FIX
+    # 1. AKTUÁLIS (FEEL IKON ÉS FEJLÉC FIXÁLVA)
     SEC1_W = 720
     temp_txt, feel_txt = f"{weather['temp']}°C", f"{weather['feels_like']}°C"
     t_w = draw.textbbox((0, 0), temp_txt, font=f_t)[2]
@@ -47,14 +47,13 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, wind_icon_img, pa
     draw.text((tx + 25 + draw.textbbox((0, 0), get_day_hu(weather["now_dt"]).upper(), font=f_h)[2] + 35, mid_y - 65), weather["weather_hu"].upper(), font=f_h, fill=colors["dim"])
     draw.text((tx, ty), temp_txt, font=f_t, fill=colors["main"])
     
-    # Feel ikon igazítása: a hőmérséklet szám mellé, optikai középre
-    if feel_icon_img: paste_icon(img, feel_icon_img, tx + t_w + 40, mid_y + 15, size=34)
-    draw.text((tx + t_w + 40 + 46, mid_y + 12), feel_txt, font=f_s, fill=colors["dim"])
+    if feel_icon_img: paste_icon(img, feel_icon_img, tx + t_w + 40, mid_y + 12, size=34)
+    draw.text((tx + t_w + 40 + 46, mid_y + 10), feel_txt, font=f_s, fill=colors["dim"])
     
     curr_x += SEC1_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
-    # 2. ADATOK (SZÉL, PÁRA) - KÖZÉPRE IGAZÍTVA
+    # 2. ADATOK (WIND1.PNG + PÁRA) - MILIMÉTERPONTOS TENGELY
     SEC2_W, ix = 300, curr_x + 75
     for i, (val, unit, icon, sz) in enumerate([(weather['wind_kmh'], " km/h", wind_icon_img, WIND_ICON_SIZE), (weather['humidity'], "%", para_icon_img, PARA_ICON_SIZE)]):
         y_txt = mid_y - 68 if i == 0 else mid_y + 12
@@ -64,7 +63,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, wind_icon_img, pa
     curr_x += SEC2_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
-    # 3. NAP (SUNRISE, SUNSET) - KÖZÉPRE IGAZÍTVA
+    # 3. NAP (SUNRISE, SUNSET) - OPTIKAI KÖZÉP
     SEC3_W, sx = 260, curr_x + 75
     for i, (val, icon) in enumerate([(weather['sunrise'], sunrise_icon_img), (weather['sunset'], sunset_icon_img)]):
         y_txt = mid_y - 65 if i == 0 else mid_y + 10
@@ -74,7 +73,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, wind_icon_img, pa
     curr_x += SEC3_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
-    # 4. ELŐREJELZÉS (IKONOK FIXÁLVA)
+    # 4. ELŐREJELZÉS (A FELHŐK LENT MARADNAK)
     SEC4_W, slot_w = 540, 180
     for i, day_entry in enumerate(weather["forecast"]):
         sm = curr_x + (i * slot_w) + (slot_w // 2)
