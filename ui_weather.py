@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 # ============================================================
 # 4K-S HORIZONTÁLIS DESIGN KONFIGURÁCIÓ
 # ============================================================
-WIDGET_WIDTH  = 2200
+WIDGET_WIDTH  = 2400   # MEGNÖVELVE: 2200 → 2400, hogy beférjen a forecast
 WIDGET_HEIGHT = 200
 WIDGET_Y      = 100
 OFFSET_LEFT   = 135    # A Media ikon feletti fehér jelölőhöz igazítva
@@ -220,15 +220,16 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     sr_val_h = draw.textbbox((0, 0), sunrise_txt, font=f_v)[3]
     ss_val_h = draw.textbbox((0, 0), sunset_txt,  font=f_v)[3]
 
+    # JAVÍTVA: fix Y pozíciók, nem számoltatott középre igazítás
     if sunrise_icon_img:
         paste_icon(img, sunrise_icon_img, curr_x,
-                   top_y + (sr_val_h - SUN_ICON_SIZE) // 2, size=SUN_ICON_SIZE)
+                   top_y, size=SUN_ICON_SIZE)   # top_y-ra igazítva
     draw.text((curr_x + SUN_ICON_SIZE + ICON_GAP, top_y),
               sunrise_txt, font=f_v, fill=colors["main"])
 
     if sunset_icon_img:
         paste_icon(img, sunset_icon_img, curr_x,
-                   bot_y + (ss_val_h - SUN_ICON_SIZE) // 2, size=SUN_ICON_SIZE)
+                   bot_y, size=SUN_ICON_SIZE)   # bot_y-ra igazítva
     draw.text((curr_x + SUN_ICON_SIZE + ICON_GAP, bot_y),
               sunset_txt, font=f_v, fill=colors["main"])
 
@@ -253,7 +254,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
 
         draw.text((curr_x + (col_w - d_name_w) // 2, mid_y - 45), d_name, font=f_l, fill=colors["dim"])
         draw.text((curr_x + (col_w - f_val_w)  // 2, mid_y),      f_val,  font=f_v, fill=colors["main"])
-        curr_x += col_w + 28   # összébb: 28px oszlopköz
+        curr_x += col_w + 18   # MÓDOSÍTVA: 28 → 18, hogy összébb legyen, ne lógjon ki
 
     # ── SZEKCIÓ 5: NÉVNAP ────────────────────────────────────────────────────
     draw.line([(curr_x, by + 40), (curr_x, by + bh - 40)], fill=colors["line"], width=3)
