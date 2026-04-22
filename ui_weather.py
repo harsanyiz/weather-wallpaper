@@ -1,5 +1,5 @@
 from PIL import Image, ImageDraw, ImageFont, ImageStat
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 # ============================================================
 # XIAOMI PREMIUM WIDGET - TISZTÁBB DESIGN, NINCS FELESLEGES SZÖVEG
@@ -13,7 +13,7 @@ INNER_MARGIN  = 50
 # Betűméretek
 FONT_TEMP     = 72
 FONT_HEADER   = 24
-FONT_VALUE    = 32      # Nagyobb, mert nincs mellette felirat
+FONT_VALUE    = 32
 FONT_SMALL    = 24
 FONT_DATETIME = 22
 FONT_NAME     = 28
@@ -24,7 +24,7 @@ FONT_SUN_TIME = 28
 # Ikon méretek
 ICON_DISPLAY_SIZE  = 120
 FEEL_ICON_SIZE     = 30
-WIND_ICON_SIZE     = 36      # Nagyobb, mert nincs szöveg mellette
+WIND_ICON_SIZE     = 36
 HUMIDITY_ICON_SIZE = 36
 SUN_ICON_SIZE      = 32
 FORECAST_ICON_SIZE = 42
@@ -33,6 +33,26 @@ FORECAST_ICON_SIZE = 42
 SECTION_GAP = 45
 # ============================================================
 
+
+def find_font(bold=False):
+    paths = [
+        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf"    if bold else "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    for p in paths:
+        import os
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def get_f(size, bold=False):
+    path = find_font(bold)
+    if path:
+        return ImageFont.truetype(path, size)
+    return ImageFont.load_default()
+
+
 def paste_icon(img, icon_img, x, y, size):
     if icon_img is None:
         return
@@ -40,10 +60,10 @@ def paste_icon(img, icon_img, x, y, size):
     img.paste(resized, (int(x), int(y)), resized)
 
 
-def draw_weather_widget_clean(img, weather, icon_img, feel_icon_img,
-                               wind_icon_img, para_icon_img,
-                               forecast_icons, sunrise_icon_img, sunset_icon_img,
-                               namedays, tz_offset):
+def draw_weather_widget(img, weather, icon_img, feel_icon_img,
+                        wind_icon_img, para_icon_img,
+                        forecast_icons, sunrise_icon_img, sunset_icon_img,
+                        namedays, tz_offset):
     from logic_weather import get_day_hu
 
     bx = OFFSET_LEFT
@@ -51,7 +71,7 @@ def draw_weather_widget_clean(img, weather, icon_img, feel_icon_img,
     bw = WIDGET_WIDTH
     bh = WIDGET_HEIGHT
 
-    # Szín meghatározás
+    # Szín meghatározás a háttér alapján
     region = img.crop((bx, by, bx + bw, by + bh)).convert("L")
     brightness = ImageStat.Stat(region).mean[0]
     
@@ -73,21 +93,22 @@ def draw_weather_widget_clean(img, weather, icon_img, feel_icon_img,
     draw = ImageDraw.Draw(img)
     
     # Betűk
-    f_t = ImageFont.truetype("/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf", FONT_TEMP)
-    f_h = ImageFont.truetype("/usr/share/fonts/truetype/noto/NotoSans-Light.ttf", FONT_HEADER)
-    f_v = ImageFont.truetype("/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf", FONT_VALUE)
-    f_s = ImageFont.truetype("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf", FONT_SMALL)
-    f_dt = ImageFont.truetype("/usr/share/fonts/truetype/noto/NotoSans-Light.ttf", FONT_DATETIME)
-    f_n = ImageFont.truetype("/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf", FONT_NAME)
-    f_fd = ImageFont.truetype("/usr/share/fonts/truetype/noto/NotoSans-Light.ttf", FONT_FORECAST_DAY)
-    f_fv = ImageFont.truetype("/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf", FONT_FORECAST_TEMP)
-    f_sun = ImageFont.truetype("/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf", FONT_SUN_TIME)
+    f_t = get_f(FONT_TEMP, bold=True)
+    f_h = get_f(FONT_HEADER)
+    f_v = get_f(FONT_VALUE, bold=True)
+    f_s = get_f(FONT_SMALL)
+    f_dt = get_f(FONT_DATETIME)
+    f_n = get_f(FONT_NAME, bold=True)
+    f_fd = get_f(FONT_FORECAST_DAY)
+    f_fv = get_f(FONT_FORECAST_TEMP, bold=True)
+    f_sun = get_f(FONT_SUN_TIME, bold=True)
+    f_l = get_f(FONT_SMALL)
 
     curr_x = int(bx + INNER_MARGIN)
     mid_y = int(by + (bh // 2))
     now_dt = weather["now_dt"]
 
-    # ── SZEKCIÓ 1: Ikon + időjárás ──────────────────────────────────────────
+    # ── 1. SZEKCIÓ: Ikon + időjárás ──────────────────────────────────────────
     day_txt = get_day_hu(now_dt).upper()
     desc_txt = weather["weather_hu"].upper()
     temp_txt = f"{weather['temp']}°"
@@ -100,37 +121,39 @@ def draw_weather_widget_clean(img, weather, icon_img, feel_icon_img,
     
     # Fejléc
     draw.text((tx, mid_y - 45), day_txt, font=f_h, fill=colors["dim"])
-    draw.text((tx + draw.textbbox((0, 0), day_txt, font=f_h)[2] + 10, mid_y - 45), 
-              desc_txt, font=f_h, fill=colors["accent"])
+    day_w = draw.textbbox((0, 0), day_txt, font=f_h)[2]
+    draw.text((tx + day_w + 10, mid_y - 45), desc_txt, font=f_h, fill=colors["accent"])
     
     # Hőmérséklet
     draw.text((tx, mid_y - 5), temp_txt, font=f_t, fill=colors["main"])
     
-    # Érzet hőmérséklet (csak ikon + érték, nincs "ÉRZET" felirat)
-    feel_x = tx + draw.textbbox((0, 0), temp_txt, font=f_t)[2] + 15
+    # Érzet hőmérséklet (csak ikon + érték)
+    temp_w = draw.textbbox((0, 0), temp_txt, font=f_t)[2]
+    feel_x = tx + temp_w + 15
     if feel_icon_img:
         paste_icon(img, feel_icon_img, feel_x, mid_y - 10, FEEL_ICON_SIZE)
     draw.text((feel_x + FEEL_ICON_SIZE + 8, mid_y - 8), feel_txt, font=f_s, fill=colors["dim"])
 
-    curr_x += ICON_DISPLAY_SIZE + 30 + draw.textbbox((0, 0), temp_txt, font=f_t)[2] + 15 + FEEL_ICON_SIZE + 8 + draw.textbbox((0, 0), feel_txt, font=f_s)[2] + SECTION_GAP
+    # Elválasztó után következő pozíció
+    feel_w = draw.textbbox((0, 0), feel_txt, font=f_s)[2]
+    curr_x += ICON_DISPLAY_SIZE + 30 + temp_w + 15 + FEEL_ICON_SIZE + 8 + feel_w + SECTION_GAP
     draw.line([(curr_x, by + 25), (curr_x, by + bh - 25)], fill=colors["line"], width=2)
     curr_x += 35
 
-    # ── SZEKCIÓ 2: SZÉL + PÁRA (CSAK IKON + ÉRTÉK) ──────────────────────────
+    # ── 2. SZEKCIÓ: SZÉL + PÁRA (CSAK IKON + ÉRTÉK) ──────────────────────────
     wind_val = f"{weather['wind_kmh']} km/h"
     hum_val = f"{weather['humidity']}%"
     
-    # Szélesség számítás
     wind_w = draw.textbbox((0, 0), wind_val, font=f_v)[2]
     hum_w = draw.textbbox((0, 0), hum_val, font=f_v)[2]
     col_w = max(WIND_ICON_SIZE + 10 + wind_w, HUMIDITY_ICON_SIZE + 10 + hum_w)
 
-    # Szél (ikon + érték)
+    # Szél
     if wind_icon_img:
         paste_icon(img, wind_icon_img, curr_x, mid_y - 30, WIND_ICON_SIZE)
     draw.text((curr_x + WIND_ICON_SIZE + 10, mid_y - 28), wind_val, font=f_v, fill=colors["main"])
     
-    # Pára (ikon + érték)
+    # Pára
     if para_icon_img:
         paste_icon(img, para_icon_img, curr_x, mid_y + 10, HUMIDITY_ICON_SIZE)
     draw.text((curr_x + HUMIDITY_ICON_SIZE + 10, mid_y + 12), hum_val, font=f_v, fill=colors["main"])
@@ -139,7 +162,7 @@ def draw_weather_widget_clean(img, weather, icon_img, feel_icon_img,
     draw.line([(curr_x, by + 25), (curr_x, by + bh - 25)], fill=colors["line"], width=2)
     curr_x += 35
 
-    # ── SZEKCIÓ 3: NAPKELTE + NAPNYUGTA ──────────────────────────────────────
+    # ── 3. SZEKCIÓ: NAPKELTE + NAPNYUGTA ──────────────────────────────────────
     sunrise_txt = weather["sunrise"]
     sunset_txt = weather["sunset"]
     
@@ -161,7 +184,7 @@ def draw_weather_widget_clean(img, weather, icon_img, feel_icon_img,
     draw.line([(curr_x, by + 25), (curr_x, by + bh - 25)], fill=colors["line"], width=2)
     curr_x += 35
 
-    # ── SZEKCIÓ 4: 3 NAPOS ELŐREJELZÉS ───────────────────────────────────────
+    # ── 4. SZEKCIÓ: 3 NAPOS ELŐREJELZÉS ───────────────────────────────────────
     for i, day_entry in enumerate(weather["forecast"][:3]):
         d_name = get_day_hu(datetime.fromtimestamp(day_entry["dt"])).upper()[:3]
         f_val = f"{round(day_entry['main']['temp'])}°"
@@ -182,15 +205,15 @@ def draw_weather_widget_clean(img, weather, icon_img, feel_icon_img,
     draw.line([(curr_x, by + 25), (curr_x, by + bh - 25)], fill=colors["line"], width=2)
     curr_x += 35
 
-    # ── SZEKCIÓ 5: NÉVNAP ────────────────────────────────────────────────────
-    nameday_value = ", ".join(n.strip().rstrip("\\") for n in namedays[:2])  # Csak 2 név, hogy ne csússzon ki
+    # ── 5. SZEKCIÓ: NÉVNAP ────────────────────────────────────────────────────
+    nameday_value = ", ".join(n.strip().rstrip("\\") for n in namedays[:2])
     if len(namedays) > 2:
         nameday_value += f" +{len(namedays)-2}"
     
     draw.text((curr_x, mid_y - 10), "NÉVNAP", font=f_l, fill=colors["accent"])
     draw.text((curr_x, mid_y + 15), nameday_value, font=f_n, fill=colors["main"])
 
-    # ── DÁTUM + IDŐ (jobb felső) ────────────────────────────────────────────
+    # ── 6. DÁTUM + IDŐ (jobb felső sarok) ────────────────────────────────────
     datetime_txt = now_dt.strftime("%Y.%m.%d  •  %H:%M")
     dt_w = draw.textbbox((0, 0), datetime_txt, font=f_dt)[2]
     draw.text((bx + bw - dt_w - INNER_MARGIN, by + 15), datetime_txt, font=f_dt, fill=colors["dim"])
