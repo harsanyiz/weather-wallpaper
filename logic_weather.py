@@ -1,12 +1,11 @@
 import requests
-import json
 import os
 from datetime import datetime, timezone, timedelta
 from io import BytesIO
 from PIL import Image
 
 # ============================================================
-# KONFIG
+# CONFIG
 # ============================================================
 API_KEY = os.environ.get("OWM_API_KEY")
 CITY = "Budapest"
@@ -22,93 +21,92 @@ IMAGE_BASE_URL = f"{BASE_URL}/images"
 
 
 # ============================================================
-# IDŐ KEZELÉS (EGY FORRÁS)
+# TIME HELPERS
 # ============================================================
 def get_now_dt(tz_offset):
     return datetime.now(timezone(timedelta(seconds=tz_offset)))
 
 
 # ============================================================
-# IDŐJÁRÁS
+# WEATHER
 # ============================================================
 def get_weather_data():
-    resp = requests.get(
+    w = requests.get(
         f"https://api.openweathermap.org/data/2.5/weather"
         f"?q={CITY}&appid={API_KEY}&units=metric"
-    )
-    data = resp.json()
+    ).json()
 
-    f_resp = requests.get(
+    f = requests.get(
         f"https://api.openweathermap.org/data/2.5/forecast"
         f"?q={CITY}&appid={API_KEY}&units=metric"
-    )
-    f_data = f_resp.json()
+    ).json()
 
-    tz_offset = data.get("timezone", 3600)
+    tz_offset = w.get("timezone", 3600)
     now_dt = get_now_dt(tz_offset)
 
+    weather_id = w["weather"][0]["id"]
+
+    # night check
     is_night = (
-        now_dt.timestamp() < data["sys"]["sunrise"]
-        or now_dt.timestamp() > data["sys"]["sunset"]
+        now_dt.timestamp() < w["sys"]["sunrise"]
+        or now_dt.timestamp() > w["sys"]["sunset"]
     )
 
-    weather_id = data["weather"][0]["id"]
-
     # POP
-    current_pop = 0
-    if "list" in f_data and f_data["list"]:
-        current_pop = round(f_data["list"][0].get("pop", 0) * 100)
+    pop = 0
+    if "list" in f and f["list"]:
+        pop = round(f["list"][0].get("pop", 0) * 100)
 
     # forecast (3 nap)
-    forecast_list = []
-    seen_days = set()
+    forecast = []
+    seen = set()
     today = now_dt.date()
 
-    for entry in f_data["list"]:
-        dt_obj = datetime.fromtimestamp(
-            entry["dt"],
+    for item in f["list"]:
+        dt = datetime.fromtimestamp(
+            item["dt"],
             tz=timezone(timedelta(seconds=tz_offset))
         )
 
-        if dt_obj.date() > today and dt_obj.date() not in seen_days and dt_obj.hour >= 12:
-            forecast_list.append(entry)
-            seen_days.add(dt_obj.date())
+        if dt.date() > today and dt.date() not in seen and dt.hour >= 12:
+            forecast.append(item)
+            seen.add(dt.date())
 
-        if len(forecast_list) == 3:
+        if len(forecast) == 3:
             break
 
     sunrise = datetime.fromtimestamp(
-        data["sys"]["sunrise"],
+        w["sys"]["sunrise"],
         tz=timezone(timedelta(seconds=tz_offset))
     ).strftime("%H:%M")
 
     sunset = datetime.fromtimestamp(
-        data["sys"]["sunset"],
+        w["sys"]["sunset"],
         tz=timezone(timedelta(seconds=tz_offset))
     ).strftime("%H:%M")
 
     return {
-        "temp": round(data["main"]["temp"]),
-        "feels_like": round(data["main"]["feels_like"]),
-        "humidity": data["main"]["humidity"],
-        "pop": current_pop,
-        "wind_kmh": round(data["wind"]["speed"] * 3.6),
+        "temp": round(w["main"]["temp"]),
+        "feels_like": round(w["main"]["feels_like"]),
+        "humidity": w["main"]["humidity"],
+        "wind_kmh": round(w["wind"]["speed"] * 3.6),
+        "pop": pop,
         "weather_id": weather_id,
         "weather_hu": get_weather_hu(weather_id),
         "is_night": is_night,
         "now_dt": now_dt,
         "sunrise": sunrise,
         "sunset": sunset,
-        "forecast": forecast_list,
-        "tz_offset": tz_offset,
+        "forecast": forecast,
+        "tz_offset": tz_offset
     }
 
 
 # ============================================================
-# IDŐJÁRÁS SZÖVEG
+# WEATHER TEXT
 # ============================================================
 def get_weather_hu(weather_id):
-    mapping = {
+    return {
         800: "Derült",
         801: "Pár felhő",
         802: "Részben felhős",
@@ -123,8 +121,51 @@ def get_weather_hu(weather_id):
         601: "Havazás",
         701: "Párás",
         741: "Köd",
-    }
-    return mapping.get(weather_id, "Változékony")
+    }.get(weather_id, "Változékony")
+
+
+# ============================================================
+# ICON NAME (FIX IMPORT HIBA MEGOLDÁS)
+# ============================================================
+def get_icon_name(weather_id, is_night):
+    suffix = "night" if is_night else "day"
+
+    if 200 <= weather_id <= 232:
+        return f"{suffix}_rain_thunder"
+    if 300 <= weather_id <= 321:
+        return "rain"
+    if weather_id in [500, 501]:
+        return f"{suffix}_rain"
+    if weather_id in [502, 503, 504]:
+        return "rain"
+    if weather_id == 511:
+        return f"{suffix}_sleet"
+    if 520 <= weather_id <= 531:
+        return f"{suffix}_rain"
+    if weather_id in [600, 601, 602]:
+        return f"{suffix}_snow"
+    if weather_id in [611, 612, 613, 615, 616]:
+        return f"{suffix}_sleet"
+    if 620 <= weather_id <= 622:
+        return f"{suffix}_snow"
+    if weather_id in [701, 741]:
+        return "mist"
+    if weather_id in [711, 761]:
+        return "fog"
+    if weather_id == 771:
+        return "wind"
+    if weather_id == 781:
+        return "tornado"
+    if weather_id == 800:
+        return "night_clear" if is_night else "day_clear"
+    if weather_id in [801, 802]:
+        return f"{suffix}_partial_cloud"
+    if weather_id == 803:
+        return "cloudy"
+    if weather_id == 804:
+        return "overcast"
+
+    return "cloudy"
 
 
 # ============================================================
@@ -132,11 +173,11 @@ def get_weather_hu(weather_id):
 # ============================================================
 def get_todays_namedays(now_dt):
     try:
-        resp = requests.get(NAMEDAYS_URL)
-        resp.raise_for_status()
-        ics = resp.text
+        r = requests.get(NAMEDAYS_URL)
+        r.raise_for_status()
+        ics = r.text
 
-        today_str = now_dt.strftime("%m%d")
+        today = now_dt.strftime("%m%d")
 
         names = []
         lines = ics.splitlines()
@@ -151,63 +192,45 @@ def get_todays_namedays(now_dt):
                     l = lines[i].strip()
 
                     if l.startswith("DTSTART"):
-                        val = l.split(":")[-1].strip()
-                        if len(val) >= 8:
-                            event["date"] = val[4:8]
+                        v = l.split(":")[-1].strip()
+                        if len(v) >= 8:
+                            event["date"] = v[4:8]
 
                     elif l.startswith("SUMMARY"):
                         event["summary"] = l.split(":", 1)[-1].strip()
 
                     i += 1
 
-                if event.get("date") == today_str and event.get("summary"):
+                if event.get("date") == today and event.get("summary"):
                     clean = event["summary"].replace("\\,", ",").replace("\\", "")
                     names.extend([n.strip() for n in clean.split(",") if n.strip()])
-
             else:
                 i += 1
 
         return names if names else ["–"]
 
     except Exception as e:
-        print("Névnap hiba:", e)
+        print("NÉVNAP ERROR:", e)
         return ["–"]
 
 
 # ============================================================
-# NAP NEVE
+# DAY NAME
 # ============================================================
 def get_day_hu(date_obj):
-    napok = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat", "Vasárnap"]
-    return napok[date_obj.weekday()]
+    days = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat", "Vasárnap"]
+    return days[date_obj.weekday()]
 
 
 # ============================================================
-# ICON LETÖLTÉS
+# ICON DOWNLOAD
 # ============================================================
-def download_icon(icon_name):
+def download_icon(name):
     try:
-        url = f"{ICONS_URL}/{icon_name}.png"
+        url = f"{ICONS_URL}/{name}.png"
         r = requests.get(url)
         if r.status_code == 200:
             return Image.open(BytesIO(r.content)).convert("RGBA")
     except:
         pass
     return None
-
-
-# ============================================================
-# JSON EXPORT
-# ============================================================
-def build_weather_json(weather_hu, temp, v_param):
-    image_url = f"{IMAGE_BASE_URL}/current.jpg?v={v_param}"
-
-    data = [{
-        "location": CITY,
-        "title": f"{weather_hu} {temp}C",
-        "author": "Gemini Design",
-        "image_url": image_url
-    }]
-
-    with open("weather.json", "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
