@@ -31,7 +31,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, wind_icon_img, pa
     draw, mid_y, curr_x = ImageDraw.Draw(img), by + (bh // 2), bx + INNER_MARGIN
     f_t, f_h, f_v, f_s, f_dt, f_n, f_fd, f_fv = get_f(FONT_TEMP, True), get_f(FONT_HEADER), get_f(FONT_VALUE, True), get_f(FONT_SMALL), get_f(FONT_DATETIME), get_f(FONT_NAME), get_f(FONT_FORECAST_DAY), get_f(FONT_FORECAST_TEMP, True)
 
-    # 1. AKTUÁLIS (SZÉLESEBB, FEJLÉC ELTOLVA)
+    # 1. AKTUÁLIS
     SEC1_W = 720
     temp_txt, feel_txt = f"{weather['temp']}°C", f"{weather['feels_like']}°C"
     t_w = draw.textbbox((0, 0), temp_txt, font=f_t)[2]
@@ -46,7 +46,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, wind_icon_img, pa
     curr_x += SEC1_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
-    # 2. ADATOK (IKONOK FIX TENGELYEN)
+    # 2. ADATOK
     SEC2_W, icon_x_f = 300, curr_x + 85
     for i, (val, unit, icon) in enumerate([(weather['wind_kmh'], " km/h", wind_icon_img), (weather['humidity'], "%", para_icon_img)]):
         y = mid_y - 68 if i == 0 else mid_y + 12
@@ -55,7 +55,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, wind_icon_img, pa
     curr_x += SEC2_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
-    # 3. NAP (FELKELTE/NYUGTA)
+    # 3. NAP
     SEC3_W, sun_x = 260, curr_x + 85
     for i, (val, icon) in enumerate([(weather['sunrise'], sunrise_icon_img), (weather['sunset'], sunset_icon_img)]):
         y = mid_y - 65 if i == 0 else mid_y + 10
@@ -64,12 +64,13 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, wind_icon_img, pa
     curr_x += SEC3_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
-    # 4. ELŐREJELZÉS (IKONOK LEJJEBB HOZVA)
+    # 4. ELŐREJELZÉS (DRAZTIKUSABB ELTOLÁS)
     SEC4_W, slot_w = 540, 180
     for i, day_entry in enumerate(weather["forecast"]):
         sm = curr_x + (i * slot_w) + (slot_w // 2)
         dn, fv = get_day_hu(datetime.fromtimestamp(day_entry["dt"])).upper()[:3], f"{round(day_entry['main']['temp'])}°C"
-        if i < len(forecast_icons): paste_icon(img, forecast_icons[i], sm - 25, mid_y - 82, size=50)
+        # JAVÍTVA: mid_y - 68. Ezzel jóval közelebb kerül a nap nevéhez.
+        if i < len(forecast_icons): paste_icon(img, forecast_icons[i], sm - 25, mid_y - 68, size=50)
         draw.text((sm - draw.textbbox((0, 0), dn, font=f_fd)[2] // 2, mid_y - 15), dn, font=f_fd, fill=colors["dim"])
         draw.text((sm - draw.textbbox((0, 0), fv, font=f_fv)[2] // 2, mid_y + 15), fv, font=f_fv, fill=colors["main"])
     curr_x += SEC4_W
