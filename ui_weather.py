@@ -2,7 +2,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageStat
 from datetime import datetime, timezone, timedelta
 
 # ============================================================
-# 4K-S HORIZONTÁLIS DESIGN - STEVE JOBS EDITION
+# 4K-S HORIZONTÁLIS DESIGN - GEMINI EDITION (FINAL)
 # ============================================================
 WIDGET_WIDTH  = 2400
 WIDGET_HEIGHT = 200
@@ -12,7 +12,7 @@ INNER_MARGIN  = 80
 
 # Tipográfia és méretek
 FONT_TEMP     = 105  # Domináns fő hőmérséklet
-FONT_HEADER   = 24   # Elegáns fejléc (Szerda, Borult)
+FONT_HEADER   = 24   # Elegáns fejléc (SZERDA, DERÜLT)
 FONT_VALUE    = 36   # Adat értékek (km/h, %)
 FONT_SMALL    = 34   # Érzet hőfok száma
 FONT_DATETIME = 24
@@ -91,8 +91,8 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     tx = start_x + ICON_DISPLAY_SIZE + 45
     temp_y = mid_y - (t_h // 2) + 5
 
-    # FEJLÉC KALAPÁLÁSA: Nap név és Borult/Derült
-    header_y = temp_y - 62 
+    # --- FEJLÉC IGAZÍTÁSA (8 km/h magasságához) ---
+    header_y = mid_y - 62 
     draw.text((tx, header_y), day_txt, font=f_h, fill=colors["dim"])
     day_w_header = draw.textbbox((0, 0), day_txt, font=f_h)[2]
     draw.text((tx + day_w_header + 30, header_y), desc_txt, font=f_h, fill=colors["dim"])
@@ -100,7 +100,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     # FŐ HŐFOK
     draw.text((tx, temp_y), temp_txt, font=f_t, fill=colors["main"])
     
-    # PIXEL PERFECT BASELINE (minden alja egy vonalba)
+    # PIXEL PERFECT BASELINE
     base_line_y = temp_y + t_h
     feel_x = tx + t_w + 35
     if feel_icon_img:
