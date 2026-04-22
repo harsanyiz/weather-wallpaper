@@ -1,3 +1,113 @@
+from PIL import Image, ImageDraw, ImageFont, ImageStat
+from datetime import datetime
+import os
+
+# --- KONFIGURÁCIÓ & MÉRETEK (4K HORIZONTÁLIS) ---
+WIDGET_WIDTH   = 2350
+WIDGET_HEIGHT  = 200
+WIDGET_Y       = 100
+OFFSET_LEFT    = 220
+INNER_MARGIN   = 60
+
+FONT_TEMP         = 104
+FONT_HEADER       = 24
+FONT_VALUE        = 36
+FONT_SMALL        = 30
+FONT_DATETIME     = 22
+FONT_NAME         = 28
+FONT_FORECAST_DAY = 22
+FONT_FORECAST_TEMP = 32
+
+ICON_DISPLAY_SIZE  = 160
+WIND_ICON_SIZE     = 36
+PARA_ICON_SIZE     = 36
+FORECAST_ICON_SIZE = 50
+SUN_ICON_SIZE      = 40
+
+GRADIENT_OFFSET = 10  # háttér jobbra tolás pixelben
+
+
+def find_font(bold=False, heavy=False):
+    font_dir = os.path.join(os.path.dirname(__file__), "Data", "Fonts")
+
+    if heavy:
+        name = "SFProText-Heavy.ttf"
+    elif bold:
+        name = "SFProText-Bold.ttf"
+    else:
+        name = "SFProText-Regular.ttf"
+
+    path = os.path.join(font_dir, name)
+    if os.path.exists(path):
+        return path
+
+    fallbacks = [
+        os.path.join(font_dir, "SFProText-Medium.ttf"),
+        os.path.join(font_dir, "SFProText-Semibold.ttf"),
+        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf"    if bold else "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    return next((f for f in fallbacks if os.path.exists(f)), None)
+
+
+def get_f(size, bold=False, heavy=False):
+    path = find_font(bold=bold, heavy=heavy)
+    if not path:
+        return ImageFont.load_default()
+    size = size if size % 2 == 0 else size + 1
+    font = ImageFont.truetype(path, size)
+    try:
+        font.fontmode = "RGB"
+    except Exception:
+        pass
+    return font
+
+
+def paste_icon(img, icon_img, x, y, size=ICON_DISPLAY_SIZE):
+    if not icon_img:
+        return
+    resized = icon_img.resize((size, size), Image.Resampling.LANCZOS)
+    img.paste(resized, (int(x), int(y)), resized)
+
+
+def get_background_image(weather_condition, is_day):
+    """
+    weather_condition: "Clear", "Clouds", "Rain", "Snow", "Fog", "Hail", "Sleet", "Thunderstorm"
+    is_day: True (nappal), False (éjszaka)
+    """
+    # Átalakítás a fájlnevekhez
+    mapping = {
+        "Clear": "sunny",
+        "Clouds": "cloudy",
+        "Rain": "rainy",
+        "Snow": "snow",
+        "Fog": "foggy",
+        "Hail": "hail",
+        "Sleet": "sleet",
+        "Thunderstorm": "rainy",  # viharra is esős képet használunk
+    }
+    
+    base_name = mapping.get(weather_condition, "cloudy")
+    
+    if is_day:
+        filename = f"{base_name}_day.jpg"
+    else:
+        # Éjszakai változat
+        filename = f"{base_name}_night.jpg"
+    
+    # Kép betöltése
+    images_dir = os.path.join(os.path.dirname(__file__), "images")
+    bg_path = os.path.join(images_dir, filename)
+    
+    if os.path.exists(bg_path):
+        try:
+            return Image.open(bg_path).convert("RGB")  # RGB-re konvertálás, ne legyen átlátszó
+        except Exception:
+            return None
+    else:
+        return None
+
+
 def draw_weather_widget(
     img, weather,
     icon_img, feel_icon_img, rainq_icon_img,
