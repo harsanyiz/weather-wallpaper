@@ -24,6 +24,8 @@ def main():
         icon_name        = get_icon_name(weather_id, is_night)
         icon_img         = download_icon(icon_name)
         feel_icon_img    = download_icon("feel")
+        wind_icon_img    = download_icon("wind")
+        para_icon_img    = download_icon("para")
         sunrise_icon_img = download_icon("day_clear")
         sunset_icon_img  = download_icon("night_clear")
 
@@ -54,6 +56,8 @@ def main():
             weather=weather,
             icon_img=icon_img,
             feel_icon_img=feel_icon_img,
+            wind_icon_img=wind_icon_img,
+            para_icon_img=para_icon_img,
             forecast_icons=forecast_icons,
             sunrise_icon_img=sunrise_icon_img,
             sunset_icon_img=sunset_icon_img,
