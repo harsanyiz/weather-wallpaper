@@ -3,6 +3,8 @@ import json
 import os
 import time
 from datetime import datetime, timezone, timedelta
+from PIL import Image
+from io import BytesIO
 
 # ============================================================
 # KONFIGURÁCIÓ
@@ -18,15 +20,16 @@ NAMEDAYS_URL = f"{BASE_URL}/Data/Magyarnevnapok.ics"
 IMAGE_BASE_URL = f"{BASE_URL}/images"
 # ============================================================
 
-
 def get_weather_data():
     """Aktuális időjárás és 3 napos előrejelzés lekérése OWM API-ból."""
+    # Aktuális adatok
     resp = requests.get(
         f"https://api.openweathermap.org/data/2.5/weather"
         f"?q={CITY}&appid={API_KEY}&units=metric"
     )
     data = resp.json()
 
+    # Előrejelzés (3 órás bontás) - Innen nyerjük ki a POP-ot és a köv. napokat
     f_resp = requests.get(
         f"https://api.openweathermap.org/data/2.5/forecast"
         f"?q={CITY}&appid={API_KEY}&units=metric"
@@ -36,7 +39,7 @@ def get_weather_data():
     tz_offset = data.get("timezone", 3600)
     now_dt = datetime.now(timezone(timedelta(seconds=tz_offset)))
     
-    # Napnyugta/napkelte ellenőrzés
+    # Napnyugta/napkelte ellenőrzés az ikonstílushoz
     is_night = (
         now_dt.timestamp() < data["sys"]["sunrise"]
         or now_dt.timestamp() > data["sys"]["sunset"]
@@ -44,6 +47,14 @@ def get_weather_data():
 
     weather_id = data["weather"][0]["id"]
 
+    # --- ESŐ VALÓSZÍNŰSÉG (POP) ---
+    # Az aktuális API nem ad 'pop'-ot, így a forecast legelső (aktuálishoz legközelebbi) elemét nézzük
+    current_pop = 0
+    if "list" in f_data and len(f_data["list"]) > 0:
+        # A pop értéke 0 és 1 közötti, 100-zal szorozva kapunk százalékot
+        current_pop = round(f_data["list"][0].get("pop", 0) * 100)
+
+    # Előrejelzés szűrése (következő 3 nap dél körüli adatai)
     forecast_list = []
     seen_days = set()
     today = now_dt.date()
@@ -64,6 +75,7 @@ def get_weather_data():
         "temp": round(data["main"]["temp"]),
         "feels_like": round(data["main"]["feels_like"]),
         "humidity": data["main"]["humidity"],
+        "pop": current_pop,
         "wind_kmh": round(data["wind"]["speed"] * 3.6),
         "weather_id": weather_id,
         "weather_hu": get_weather_hu(weather_id),
@@ -76,22 +88,28 @@ def get_weather_data():
         "tz_offset": tz_offset,
     }
 
-
 def get_weather_hu(weather_id):
-    """Időjárás kód → magyar szöveg."""
+    """OWM Időjárás kód → Magyar leírás mapping."""
     mapping = {
         800: "Derült",
         801: "Pár felhő",
         802: "Részben felhős",
         803: "Felhős",
         804: "Borult",
+        500: "Szemerkélő eső",
+        501: "Eső",
+        502: "Intenzív eső",
         511: "Ónos eső",
+        200: "Vihar",
+        600: "Hószállingózás",
+        601: "Havazás",
+        701: "Párás idő",
+        741: "Köd",
     }
     return mapping.get(weather_id, "Változékony")
 
-
 def get_icon_name(weather_id, is_night):
-    """OWM weather_id → ikon fájlnév."""
+    """Weather_id alapján meghatározza a PNG ikon nevét."""
     suffix = "night" if is_night else "day"
     if 200 <= weather_id <= 232: return f"{suffix}_rain_thunder"
     if 300 <= weather_id <= 321: return "rain"
@@ -114,27 +132,27 @@ def get_icon_name(weather_id, is_night):
     if weather_id == 804: return "overcast"
     return "cloudy"
 
-
 def get_background_image_name(weather_id, is_night):
+    """Háttérkép választó logika."""
     suffix = "night" if is_night else "day"
     if weather_id in [611, 612, 613, 615, 616]: return f"sleet_{suffix}"
     elif weather_id in [620, 621, 622, 600, 601, 602]: return f"snow_{suffix}"
     elif weather_id == 800: return f"sunny_{suffix}"
     else: return f"cloudy_{suffix}"
 
-
 def download_icon(icon_name):
-    from PIL import Image
-    from io import BytesIO
+    """Letölti az ikont a GitHub-ról és PIL Image-ként adja vissza."""
     url = f"{ICONS_URL}/{icon_name}.png"
-    resp = requests.get(url)
-    if resp.status_code == 200:
-        return Image.open(BytesIO(resp.content)).convert("RGBA")
+    try:
+        resp = requests.get(url)
+        if resp.status_code == 200:
+            return Image.open(BytesIO(resp.content)).convert("RGBA")
+    except:
+        pass
     return None
 
-
 def get_todays_namedays():
-    """Letölti az ICS-t és visszaadja a megtisztított neveket."""
+    """ICS letöltése és a mai névnapok kinyerése."""
     try:
         resp = requests.get(NAMEDAYS_URL)
         resp.raise_for_status()
@@ -146,15 +164,14 @@ def get_todays_namedays():
         
         i = 0
         while i < len(lines):
-            line_content = lines[i].strip()
-            if line_content == "BEGIN:VEVENT":
+            if lines[i].strip() == "BEGIN:VEVENT":
                 event = {}
                 i += 1
                 while i < len(lines) and lines[i].strip() != "END:VEVENT":
                     l = lines[i].strip()
                     if l.startswith("DTSTART"):
                         val = l.split(":")[-1].strip()
-                        event["date"] = val[4:]
+                        event["date"] = val[4:] # Csak a hónap/nap (MMDD)
                     elif l.startswith("SUMMARY"):
                         val = l.split(":", 1)[-1].strip()
                         event["summary"] = val
@@ -162,25 +179,23 @@ def get_todays_namedays():
                 
                 if event.get("date") == today_str and "summary" in event:
                     raw = event["summary"]
-                    # Itt a javítás a \ jelek ellen
                     clean_raw = raw.replace("\\,", ",").replace(";", ",").replace("\\", "")
                     parts = [n.strip() for n in clean_raw.split(",")]
                     names.extend(parts)
             else:
                 i += 1
-
         return names if names else ["–"]
     except Exception as e:
         print(f"⚠️ Névnap hiba: {e}")
         return ["–"]
 
-
 def get_day_hu(date_obj):
+    """Dátum objektumból magyar napnév."""
     napok = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat", "Vasárnap"]
     return napok[date_obj.weekday()]
 
-
 def build_weather_json(weather_hu, temp, v_param):
+    """Frissíti a külső weather.json fájlt."""
     image_url = f"{IMAGE_BASE_URL}/current.jpg?v={v_param}"
     weather_json = [{
         "location": CITY,
