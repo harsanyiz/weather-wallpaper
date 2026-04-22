@@ -19,8 +19,9 @@ FONT_DATETIME = 24   # Dátum+idő jobb felső sarok
 FONT_NAME     = 28   # Névnap felirat
 
 # Ikon megjelenítési méret (80px-es PNG → felnagyítva)
-ICON_DISPLAY_SIZE = 160   # px, 4K-n jól látható
-FEEL_ICON_SIZE    = 48    # feel.png mérete az érzet érték felett
+ICON_DISPLAY_SIZE    = 160   # px – aktuális időjárás ikon
+FEEL_ICON_SIZE       = 44    # feel.png – érzet ikon, az érték mellett balra
+FORECAST_ICON_SIZE   = 60    # előrejelzés ikonok a nap neve felett
 
 # Ikonok bal oldali eltolása a szekción belül (opcionális finomhangolás)
 ICON_OFFSET_X = 0
@@ -71,21 +72,21 @@ def paste_icon(img, icon_img, x, y, size=ICON_DISPLAY_SIZE):
     img.paste(resized, (int(x), int(y)), resized)
 
 
-def draw_weather_widget(img, weather, icon_img, feel_icon_img, namedays, tz_offset):
+def draw_weather_widget(img, weather, icon_img, feel_icon_img, forecast_icons, namedays, tz_offset):
     """
     Rárajzolja a widget összes elemét a 4K-s képre.
 
     Paraméterek:
-        img           : PIL Image (RGBA, 3840x2160)
-        weather       : dict a logic_weather.get_weather_data() eredménye
-        icon_img      : PIL Image (RGBA) – az aktuális időjárás ikonja
-        feel_icon_img : PIL Image (RGBA) – feel.png ikon az érzet mellé
-        namedays      : list[str] – mai névnapok
-        tz_offset     : int – timezone offset másodpercben
+        img            : PIL Image (RGBA, 3840x2160)
+        weather        : dict – logic_weather.get_weather_data() eredménye
+        icon_img       : PIL Image (RGBA) – aktuális időjárás ikonja
+        feel_icon_img  : PIL Image (RGBA) – feel.png, érzet hőfok mellé balra
+        forecast_icons : list[PIL Image | None] – 3 napos előrejelzés ikonjai
+        namedays       : list[str] – mai névnapok
+        tz_offset      : int – timezone offset másodpercben
     """
     from logic_weather import get_day_hu
 
-    W, H = img.size
     bx = OFFSET_LEFT
     by = WIDGET_Y
     bw = WIDGET_WIDTH
@@ -114,9 +115,6 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, namedays, tz_offs
     weather_hu = weather["weather_hu"]
 
     # ── SZEKCIÓ 1: IKON + NAP+LEÍRÁS egy sorban + HŐFOK ─────────────────────
-    #   Elrendezés:
-    #     [időjárás ikon]  SZERDA  DERÜLT
-    #                      12°C
     day_txt  = get_day_hu(now_dt).upper()
     desc_txt = weather_hu.upper()
     temp_txt = f"{temp}°C"
@@ -125,7 +123,6 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, namedays, tz_offs
     desc_w = draw.textbbox((0, 0), desc_txt, font=f_d)[2]
     temp_w = draw.textbbox((0, 0), temp_txt, font=f_t)[2]
 
-    # Nap + leírás egy sorban, köztük kis rés
     day_desc_gap = 18
     day_desc_w   = day_w + day_desc_gap + desc_w
     text_block_w = max(day_desc_w, temp_w)
@@ -133,43 +130,38 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, namedays, tz_offs
     icon_gap = ICON_DISPLAY_SIZE + 30 if icon_img else 0
     block_w  = icon_gap + text_block_w
 
-    # Ikon (vertikálisan középre)
     if icon_img:
         icon_y = mid_y - ICON_DISPLAY_SIZE // 2
         paste_icon(img, icon_img, curr_x + ICON_OFFSET_X, icon_y)
 
     tx = curr_x + icon_gap
-
-    # SZERDA  DERÜLT – egy sorban, a hőfok felett
     header_y = int(mid_y - 75)
     draw.text((tx, header_y), day_txt,  font=f_l, fill=colors["dim"])
     draw.text((tx + day_w + day_desc_gap, header_y), desc_txt, font=f_d, fill=colors["dim"])
-
-    # 12°C – középre igazítva a blokkon belül
     draw.text((int(tx + (text_block_w - temp_w) / 2), int(mid_y - 40)), temp_txt, font=f_t, fill=colors["main"])
 
     curr_x += block_w + 70
     draw.line([(curr_x, by + 40), (curr_x, by + bh - 40)], fill=colors["line"], width=3)
     curr_x += 60
 
-    # ── SZEKCIÓ 2: ÉRZET (feel.png ikon) / SZÉL / PÁRA ──────────────────────
-    #   Érzetnél: kis feel.png ikon fölötte, alatta az érték – felirat nincs
-    #   Szélnél, Páránál: marad a szöveges label
-
-    # --- Érzet: ikon + érték ---
+    # ── SZEKCIÓ 2: ÉRZET (feel.png bal oldalt) + SZÉL + PÁRA ────────────────
+    #   Érzet: [feel ikon] [érték]  egymás mellett egy sorban, középre igazítva
     feel_val = f"{weather['feels_like']}°C"
     feel_vw  = draw.textbbox((0, 0), feel_val, font=f_v)[2]
-    feel_col_w = max(FEEL_ICON_SIZE, feel_vw)
 
+    # feel ikon + rés + érték szélessége összesen
+    feel_gap      = 10 if feel_icon_img else 0
+    feel_total_w  = (FEEL_ICON_SIZE + feel_gap if feel_icon_img else 0) + feel_vw
+
+    feel_icon_y = mid_y - FEEL_ICON_SIZE // 2   # vertikálisan középre
     if feel_icon_img:
-        icon_x = curr_x + (feel_col_w - FEEL_ICON_SIZE) // 2
-        icon_y = mid_y - FEEL_ICON_SIZE - 6
-        paste_icon(img, feel_icon_img, icon_x, icon_y, size=FEEL_ICON_SIZE)
+        paste_icon(img, feel_icon_img, curr_x, feel_icon_y, size=FEEL_ICON_SIZE)
 
-    draw.text((curr_x + (feel_col_w - feel_vw) // 2, mid_y), feel_val, font=f_v, fill=colors["main"])
-    curr_x += feel_col_w + 80
+    draw.text((curr_x + (FEEL_ICON_SIZE + feel_gap if feel_icon_img else 0), mid_y - feel_vw // 4),
+              feel_val, font=f_v, fill=colors["main"])
+    curr_x += feel_total_w + 80
 
-    # --- Szél, Pára: szöveges label ---
+    # Szél, Pára – szöveges label fölül, érték alul
     for label, val in [("Szél", f"{weather['wind_kmh']} km/h"), ("Pára", f"{weather['humidity']}%")]:
         draw.text((curr_x, mid_y - 45), label.upper(), font=f_l, fill=colors["dim"])
         draw.text((curr_x, mid_y),      val,            font=f_v, fill=colors["main"])
@@ -177,31 +169,46 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, namedays, tz_offs
         vw = draw.textbbox((0, 0), val,            font=f_v)[2]
         curr_x += max(lw, vw) + 80
 
-    # ── SZEKCIÓ 3: 3 NAPOS ELŐREJELZÉS ───────────────────────────────────────
+    # ── SZEKCIÓ 3: 3 NAPOS ELŐREJELZÉS ikonnal ───────────────────────────────
     draw.line([(curr_x, by + 40), (curr_x, by + bh - 40)], fill=colors["line"], width=3)
     curr_x += 60
 
-    for day_entry in weather["forecast"]:
+    for i, day_entry in enumerate(weather["forecast"]):
         d_name = get_day_hu(
             datetime.fromtimestamp(day_entry["dt"])
         ).upper()[:3]
-        f_val = f"{round(day_entry['main']['temp'])}°C"
-        draw.text((curr_x, mid_y - 45), d_name, font=f_l, fill=colors["dim"])
-        draw.text((curr_x, mid_y),      f_val,  font=f_v, fill=colors["main"])
-        curr_x += 140
+        f_val  = f"{round(day_entry['main']['temp'])}°C"
+        d_name_w = draw.textbbox((0, 0), d_name, font=f_l)[2]
+        f_val_w  = draw.textbbox((0, 0), f_val,  font=f_v)[2]
+        col_w    = max(d_name_w, f_val_w, FORECAST_ICON_SIZE)
+
+        # Ikon a nap neve fölé, középre igazítva az oszlopon belül
+        fc_icon = forecast_icons[i] if i < len(forecast_icons) else None
+        if fc_icon:
+            icon_x = curr_x + (col_w - FORECAST_ICON_SIZE) // 2
+            icon_y = mid_y - FORECAST_ICON_SIZE - d_name_w - 8
+            paste_icon(img, fc_icon, icon_x, icon_y, size=FORECAST_ICON_SIZE)
+
+        draw.text((curr_x + (col_w - d_name_w) // 2, mid_y - 45), d_name, font=f_l, fill=colors["dim"])
+        draw.text((curr_x + (col_w - f_val_w)  // 2, mid_y),      f_val,  font=f_v, fill=colors["main"])
+        curr_x += col_w + 30
 
     # ── SZEKCIÓ 4: NÉVNAP ────────────────────────────────────────────────────
     draw.line([(curr_x, by + 40), (curr_x, by + bh - 40)], fill=colors["line"], width=3)
     curr_x += 40
 
     nameday_label = "NÉVNAP"
-    nameday_value = ", ".join(namedays)
-    draw.text((curr_x, mid_y - 45), nameday_label, font=f_l,  fill=colors["dim"])
-    draw.text((curr_x, mid_y),      nameday_value, font=f_n,  fill=colors["main"])
+    # Névnapok vesszővel elválasztva (\ helyett)
+    nameday_value = ", ".join(n.strip().rstrip("\\") for n in namedays)
+    draw.text((curr_x, mid_y - 45), nameday_label, font=f_l, fill=colors["dim"])
+    draw.text((curr_x, mid_y),      nameday_value, font=f_n, fill=colors["main"])
 
     # ── DÁTUM + IDŐ – widget jobb felső sarka ────────────────────────────────
-    datetime_txt = now_dt.strftime("%Y. %m. %d.  %H:%M")
-    dt_w = draw.textbbox((0, 0), datetime_txt, font=f_dt)[2]
-    dt_x = bx + bw - dt_w           # widget jobb széléhez igazítva
-    dt_y = by + 10                   # widget teteje
-    draw.text((dt_x, dt_y), datetime_txt, font=f_dt, fill=colors["dim"])
+    # Formátum: 26.04.22  11:41  (YY.MM.DD  HH:MM)
+    datetime_txt = now_dt.strftime("%y.%m.%d  %H:%M")
+    dt_w  = draw.textbbox((0, 0), datetime_txt, font=f_dt)[2]
+    dt_x  = bx + bw - dt_w
+    dt_y  = by + 10
+    # Szürke szín a brightness-től függetlenül (izléses, visszafogott)
+    grey  = (160, 160, 160, 200)
+    draw.text((dt_x, dt_y), datetime_txt, font=f_dt, fill=grey)
