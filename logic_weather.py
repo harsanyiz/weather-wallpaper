@@ -203,15 +203,16 @@ def get_todays_namedays():
                         # DTSTART;VALUE=DATE:20000422  vagy DTSTART:20000422
                         val = line.split(":")[-1].strip()
                         event["date"] = val[4:]  # hónap+nap: "0422"
-                    elif line.startswith("SUMMARY"):
+        elif line.startswith("SUMMARY"):
                         val = line.split(":", 1)[-1].strip()
                         event["summary"] = val
                     i += 1
                 if event.get("date") == today_str and "summary" in event:
-                    # Összefoglalóból neveket vesszővel vagy más elválasztóval kiszedi
                     raw = event["summary"]
-                    # Általában "Csilla, Noémi" formátum
-                    parts = [n.strip() for n in raw.replace(";", ",").split(",")]
+                    # Kicseréljük a \, sorokat, a pontosvesszőket, és töröljük a maradék \ jelet
+                    clean_raw = raw.replace("\\,", ",").replace(";", ",").replace("\\", "")
+                    # Most már biztonságosan darabolhatunk a vessző mentén
+                    parts = [n.strip() for n in clean_raw.split(",")]
                     names.extend(parts)
             else:
                 i += 1
