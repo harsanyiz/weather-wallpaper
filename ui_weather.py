@@ -3,10 +3,10 @@ from datetime import datetime
 import os
 
 # --- KONFIGURÁCIÓ & MÉRETEK (4K HORIZONTÁLIS) ---
-WIDGET_WIDTH   = 2400
+WIDGET_WIDTH   = 2270
 WIDGET_HEIGHT  = 200
 WIDGET_Y       = 100
-OFFSET_LEFT    = 135
+OFFSET_LEFT    = 200
 INNER_MARGIN   = 80
 
 FONT_TEMP         = 104
