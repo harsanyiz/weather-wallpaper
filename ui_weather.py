@@ -20,8 +20,8 @@ FONT_VALUE = 36
 FONT_UPDATE = 24      
 FONT_NAME_DAY = 28    # Névnap betűméret
 
-# Ikon méretek
-ICON_SIZE = 64        # Időjárás ikon mérete
+# Ikon méret
+ICON_SIZE = 64
 # ============================================================
 
 def find_font(bold=False):
@@ -87,9 +87,9 @@ def draw_weather_widget(img, weather_data, forecast_list, update_time):
     # --- 4. SZEKCIÓ: FRISSÍTÉS ---
     curr_x = _draw_update_time(draw, curr_x, mid_y, update_time, f_update, colors)
     
-    # --- 5. SZEKCIÓ: NÉVNAP (a legvégére) ---
-    if weather_data.get("name_day"):
-        _draw_name_day(draw, curr_x, mid_y, weather_data["name_day"], f_name_day, colors)
+    # --- 5. SZEKCIÓ: NÉVNAP (ha van) ---
+    if weather_data.get("name_day") and weather_data["name_day"]:
+        _draw_name_day(draw, curr_x + 20, mid_y, weather_data["name_day"], f_name_day, colors)
     
     return img
 
@@ -149,7 +149,7 @@ def _draw_update_time(draw, curr_x, mid_y, update_time, f_update, colors):
     draw.text((curr_x + 20, mid_y - 12), update_txt, font=f_update, fill=colors["dim"])
     return curr_x + draw.textbbox((0,0), update_txt, font=f_update)[2] + 60
 
-def _draw_name_day(draw, curr_x, mid_y, name_day, f_name_day, colors):
+def _draw_name_day(draw, x, mid_y, name_day, f_name_day, colors):
     """Kirajzolja a névnapot a widget végére"""
     name_day_txt = f"📅 NÉVNAP: {name_day}"
-    draw.text((curr_x + 20, mid_y - 12), name_day_txt, font=f_name_day, fill=colors["dim"])
+    draw.text((x, mid_y - 12), name_day_txt, font=f_name_day, fill=colors["dim"])
