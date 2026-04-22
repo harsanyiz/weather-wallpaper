@@ -135,22 +135,28 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     header_y = mid_y - total_h // 2
     temp_y   = header_y + header_h + spacing
 
-    # ── PONTOS IGAZÍTÁSOK ───────────────────────────────────────────────────
-    # "SZERDA RÉSZBEN FELHŐS" 3 pixellel LEJJEBB
-    draw.text((tx, header_y + 3), day_txt, font=f_h, fill=colors["dim"])
-    draw.text((tx + day_w + header_gap, header_y + 3), desc_txt, font=f_h, fill=colors["dim"])
+    # ── FINOMHANGOLÁSOK ──────────────────────────────────────────────────────
+    # 1. SZERDA RÉSZBEN FELHŐS: 3 pixel LE + 3 pixel JOBBRA
+    header_offset_x = 3
+    header_offset_y = 3
     
-    # Hőfok 1 pixellel FELJEBB
-    draw.text((tx, temp_y - 1), temp_txt, font=f_t, fill=colors["main"])
+    draw.text((tx + header_offset_x, header_y + header_offset_y), 
+              day_txt, font=f_h, fill=colors["dim"])
+    draw.text((tx + day_w + header_gap + header_offset_x, header_y + header_offset_y), 
+              desc_txt, font=f_h, fill=colors["dim"])
+    
+    # 2. 14°C + érzet ikon + érzet szám: 3 pixel FEL
+    temp_offset_y = -3
+    draw.text((tx, temp_y + temp_offset_y), temp_txt, font=f_t, fill=colors["main"])
 
-    temp_bottom  = temp_y - 1 + temp_h
+    temp_bottom  = temp_y + temp_offset_y + temp_h
     feel_icon_y  = temp_bottom - FEEL_ICON_SIZE
     feel_text_y  = temp_bottom - draw.textbbox((0, 0), feel_txt, font=f_s)[3]
     feel_x       = tx + temp_w + 14
 
     if feel_icon_img:
-        paste_icon(img, feel_icon_img, feel_x, feel_icon_y, size=FEEL_ICON_SIZE)
-    draw.text((feel_x + FEEL_ICON_SIZE + ICON_GAP, feel_text_y),
+        paste_icon(img, feel_icon_img, feel_x, feel_icon_y + temp_offset_y, size=FEEL_ICON_SIZE)
+    draw.text((feel_x + FEEL_ICON_SIZE + ICON_GAP, feel_text_y + temp_offset_y),
               feel_txt, font=f_s, fill=colors["dim"])
 
     curr_x += icon_gap_px + text_block_w + 60
@@ -207,9 +213,9 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     draw.line([(curr_x, by + 40), (curr_x, by + bh - 40)], fill=colors["line"], width=3)
     curr_x += 50
 
-    # ── SZEKCIÓ 4: FORECAST (4 PIXELLEL BALRA) ───────────────────────────────
-    forecast_offset_y = 18
-    forecast_offset_x = -4   # 4 pixel balra
+    # ── SZEKCIÓ 4: FORECAST (3 pixel LE + 3 pixel BALRA) ─────────────────────
+    forecast_offset_y = 3      # 3 pixel lejjebb
+    forecast_offset_x = -3     # 3 pixel balra
     
     for i, day_entry in enumerate(weather["forecast"]):
         d_name   = get_day_hu(datetime.fromtimestamp(day_entry["dt"])).upper()[:3]
@@ -225,9 +231,11 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
                        mid_y - 45 - FORECAST_ICON_SIZE + forecast_offset_y,
                        size=FORECAST_ICON_SIZE)
 
-        draw.text((curr_x + forecast_offset_x + (col_w - d_name_w) // 2, mid_y - 40 + forecast_offset_y),
+        draw.text((curr_x + forecast_offset_x + (col_w - d_name_w) // 2, 
+                   mid_y - 40 + forecast_offset_y),
                   d_name, font=f_fd, fill=colors["dim"])
-        draw.text((curr_x + forecast_offset_x + (col_w - f_val_w)  // 2, mid_y - 8 + forecast_offset_y),
+        draw.text((curr_x + forecast_offset_x + (col_w - f_val_w)  // 2, 
+                   mid_y - 8 + forecast_offset_y),
                   f_val,  font=f_fv, fill=colors["main"])
         curr_x += col_w + 14
 
