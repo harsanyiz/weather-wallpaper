@@ -101,7 +101,7 @@ def get_background_image(weather_condition, is_day):
     
     if os.path.exists(bg_path):
         try:
-            return Image.open(bg_path).convert("RGBA")
+            return Image.open(bg_path).convert("RGB")  # RGB-re konvertálás, ne legyen átlátszó
         except Exception:
             return None
     else:
@@ -131,8 +131,8 @@ def draw_weather_widget(
     if bg_image:
         # Átméretezés a widget méretére
         bg_image = bg_image.resize((bw, bh), Image.Resampling.LANCZOS)
-        # Beillesztés a widget helyére
-        img.paste(bg_image, (bx, by), bg_image)
+        # Beillesztés a widget helyére (maszk NÉLKÜL, hogy teljesen fedjen)
+        img.paste(bg_image, (bx, by))
         
         # Világos/sötét szövegszínek meghatározása a háttér alapján
         # A háttérkép átlagos fényereje alapján
