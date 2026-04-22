@@ -20,10 +20,18 @@ def main():
         weather_id = weather["weather_id"]
         is_night   = weather["is_night"]
 
-        # ── Ikon letöltése GitHubról ──────────────────────────────────────────
-        icon_name = get_icon_name(weather_id, is_night)
-        icon_img  = download_icon(icon_name)
+        # ── Ikonok letöltése GitHubról ───────────────────────────────────────
+        icon_name     = get_icon_name(weather_id, is_night)
+        icon_img      = download_icon(icon_name)
         feel_icon_img = download_icon("feel")   # feel.png – érzet ikon
+
+        # Forecast ikonok – minden előrejelzett naphoz külön
+        forecast_icons = []
+        for entry in weather["forecast"]:
+            f_id        = entry["weather"][0]["id"]
+            # Előrejelzésnél 12:00 körüli adat → nappal ikon
+            f_icon_name = get_icon_name(f_id, is_night=False)
+            forecast_icons.append(download_icon(f_icon_name))
 
         # ── Névnapok lekérése GitHubról ───────────────────────────────────────
         namedays = get_todays_namedays()
@@ -45,6 +53,7 @@ def main():
             weather=weather,
             icon_img=icon_img,
             feel_icon_img=feel_icon_img,
+            forecast_icons=forecast_icons,
             namedays=namedays,
             tz_offset=weather["tz_offset"],
         )
