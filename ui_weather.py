@@ -88,7 +88,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
       1. Időjárás ikon | SZERDA DERÜLT fejléc (kisebb) | nagy hőfok + érzet ikon+szöveg jobbra
       2. [wind ikon] szélsebesség egymás alatt + [para ikon] páratartalom egymás alatt
       3. [day_clear] napkelte idő / [night_clear] napnyugta idő – ikonok igazítva
-      4. 3 napos forecast ikonnal + nap + hőfok (összébb, kisebb)
+      4. 3 napos forecast ikonnal + nap + hőfok (összébb, kisebb, lejjebb)
       5. Névnap
       6. Dátum+idő jobb felső sarok
     """
@@ -217,8 +217,10 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     draw.line([(curr_x, by + 40), (curr_x, by + bh - 40)], fill=colors["line"], width=3)
     curr_x += 50
 
-    # ── SZEKCIÓ 4: 3 NAPOS FORECAST (EREDETI ELRENDEZÉS, KISEBB MÉRET) ───────
-    # Elrendezés: [ikon] fent, napnév középen, hőfok lent
+    # ── SZEKCIÓ 4: 3 NAPOS FORECAST (összébb, kisebb, LEJJEBB) ───────────────
+    # MÓDOSÍTVA: lejjebb tettem az egész forecast blokkot
+    forecast_offset = 18   # lejjebb tolás mértéke (pixelben)
+    
     for i, day_entry in enumerate(weather["forecast"]):
         d_name   = get_day_hu(datetime.fromtimestamp(day_entry["dt"])).upper()[:3]
         f_val    = f"{round(day_entry['main']['temp'])}°C"
@@ -230,12 +232,12 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
         if fc_icon:
             paste_icon(img, fc_icon,
                        curr_x + (col_w - FORECAST_ICON_SIZE) // 2,
-                       mid_y - 45 - FORECAST_ICON_SIZE,
+                       mid_y - 45 - FORECAST_ICON_SIZE + forecast_offset,
                        size=FORECAST_ICON_SIZE)
 
-        draw.text((curr_x + (col_w - d_name_w) // 2, mid_y - 40),
+        draw.text((curr_x + (col_w - d_name_w) // 2, mid_y - 40 + forecast_offset),
                   d_name, font=f_fd, fill=colors["dim"])
-        draw.text((curr_x + (col_w - f_val_w)  // 2, mid_y - 8),
+        draw.text((curr_x + (col_w - f_val_w)  // 2, mid_y - 8 + forecast_offset),
                   f_val,  font=f_fv, fill=colors["main"])
         curr_x += col_w + 14   # szűk oszlopköz
 
