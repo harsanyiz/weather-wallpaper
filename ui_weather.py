@@ -92,7 +92,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     temp_y = mid_y - (t_h // 2) + 5
 
     # FEJLÉC KALAPÁLÁSA: Nap név és Borult/Derült
-    header_y = temp_y - 40 
+    header_y = temp_y - 62 
     draw.text((tx, header_y), day_txt, font=f_h, fill=colors["dim"])
     day_w_header = draw.textbbox((0, 0), day_txt, font=f_h)[2]
     draw.text((tx + day_w_header + 30, header_y), desc_txt, font=f_h, fill=colors["dim"])
