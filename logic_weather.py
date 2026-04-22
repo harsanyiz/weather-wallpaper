@@ -187,7 +187,12 @@ def get_todays_namedays():
         resp.raise_for_status()
         ics_text = resp.text
 
-        today = datetime.now()
+        # Budapest időzóna szerint (zoneinfo ha elérhető, fallback UTC+2)
+        try:
+            import zoneinfo
+            today = datetime.now(tz=zoneinfo.ZoneInfo("Europe/Budapest"))
+        except Exception:
+            today = datetime.now(tz=timezone(timedelta(hours=2)))
         today_str = today.strftime("%m%d")  # pl. "0422"
 
         names = []
