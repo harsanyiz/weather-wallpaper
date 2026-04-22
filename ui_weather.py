@@ -1,4 +1,4 @@
-from PIL import Image, ImageDraw, ImageFont, ImageStat
+from PIL import Image, ImageDraw, ImageFont, ImageStat, ImageFilter
 from datetime import datetime
 import os
 
@@ -25,6 +25,10 @@ FORECAST_ICON_SIZE = 50
 SUN_ICON_SIZE      = 40
 
 GRADIENT_OFFSET = 10  # háttér jobbra tolás pixelben
+
+# --- BLUR / OVERLAY BEÁLLÍTÁSOK ---
+BG_BLUR_RADIUS   = 22    # Gaussian blur erőssége (px) – növeld ha több elmosás kell
+BG_OVERLAY_ALPHA = 150   # Sötétítő réteg átlátszatlansága (0–255); 150 ≈ 59%
 
 
 def find_font(bold=False, heavy=False):
@@ -75,37 +79,59 @@ def get_background_image(weather_condition, is_day):
     weather_condition: "Clear", "Clouds", "Rain", "Snow", "Fog", "Hail", "Sleet", "Thunderstorm"
     is_day: True (nappal), False (éjszaka)
     """
-    # Átalakítás a fájlnevekhez
     mapping = {
-        "Clear": "sunny",
-        "Clouds": "cloudy",
-        "Rain": "rainy",
-        "Snow": "snow",
-        "Fog": "foggy",
-        "Hail": "hail",
-        "Sleet": "sleet",
-        "Thunderstorm": "rainy",  # viharra is esős képet használunk
+        "Clear":        "sunny",
+        "Clouds":       "cloudy",
+        "Rain":         "rainy",
+        "Snow":         "snow",
+        "Fog":          "foggy",
+        "Hail":         "hail",
+        "Sleet":        "sleet",
+        "Thunderstorm": "rainy",
     }
-    
+
     base_name = mapping.get(weather_condition, "cloudy")
-    
-    if is_day:
-        filename = f"{base_name}_day.jpg"
-    else:
-        # Éjszakai változat
-        filename = f"{base_name}_night.jpg"
-    
-    # Kép betöltése
+    filename  = f"{base_name}_day.jpg" if is_day else f"{base_name}_night.jpg"
+
     images_dir = os.path.join(os.path.dirname(__file__), "images")
-    bg_path = os.path.join(images_dir, filename)
-    
+    bg_path    = os.path.join(images_dir, filename)
+
     if os.path.exists(bg_path):
         try:
-            return Image.open(bg_path).convert("RGB")  # RGB-re konvertálás, ne legyen átlátszó
+            return Image.open(bg_path).convert("RGB")
         except Exception:
             return None
-    else:
-        return None
+    return None
+
+
+def apply_blurred_background(img, bg_image, bx, by, bw, bh,
+                              blur_radius=BG_BLUR_RADIUS,
+                              overlay_alpha=BG_OVERLAY_ALPHA):
+    """
+    Elmosott + sötétített hátteret illeszt a widget területére.
+
+    Lépések:
+      1. Háttérkép átméretezése a widget méretére
+      2. Gaussian blur alkalmazása
+      3. Sötétítő RGBA overlay rárakása (alpha = overlay_alpha)
+      4. Eredmény beillesztése az img-be a widget pozíciójára
+    """
+    # 1. Átméretezés
+    bg = bg_image.resize((bw, bh), Image.Resampling.LANCZOS)
+
+    # 2. Blur
+    bg_blurred = bg.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+
+    # 3. Sötétítő overlay
+    overlay = Image.new("RGBA", (bw, bh), (0, 0, 0, overlay_alpha))
+    bg_rgba  = bg_blurred.convert("RGBA")
+    bg_rgba.paste(overlay, (0, 0), overlay)
+
+    # 4. Visszakonvertálás RGB-re és beillesztés
+    bg_final = bg_rgba.convert("RGB")
+    img.paste(bg_final, (bx, by))
+
+    return bg_final   # visszaadjuk, hogy a brightness-t meg tudjuk mérni
 
 
 def draw_weather_widget(
@@ -122,41 +148,37 @@ def draw_weather_widget(
 
     # --- HÁTTÉRKÉP BETÖLTÉSE (időjárás és napszak alapján) ---
     weather_condition = weather.get("weather_main", "Clear")
-    now = weather["now_dt"]
-    hour = now.hour
-    is_day = 6 <= hour <= 18  # nappal 6-18 óra között
-    
+    now    = weather["now_dt"]
+    hour   = now.hour
+    is_day = 6 <= hour <= 18
+
     bg_image = get_background_image(weather_condition, is_day)
-    
+
     if bg_image:
-        # Átméretezés a widget méretére
-        bg_image = bg_image.resize((bw, bh), Image.Resampling.LANCZOS)
-        # Beillesztés a widget helyére (maszk NÉLKÜL, hogy teljesen fedjen)
-        img.paste(bg_image, (bx, by))
-        
-        # Világos/sötét szövegszínek meghatározása a háttér alapján
-        # A háttérkép átlagos fényereje alapján
-        bg_brightness = ImageStat.Stat(bg_image.convert("L")).mean[0]
-        
+        # Elmosott + sötétített háttér beillesztése
+        bg_final = apply_blurred_background(img, bg_image, bx, by, bw, bh)
+
+        # Szövegszínek meghatározása a feldolgozott (blur+overlay utáni) kép alapján
+        bg_brightness = ImageStat.Stat(bg_final.convert("L")).mean[0]
+
         if bg_brightness > 145:
             colors = {
-                "main":     (20,  20,  35,  255),
-                "dim":      (120, 110, 140, 200),
-                "line":     (0,   0,   0,   12),
-                "accent":   (255, 100, 50,  255),
-                "accent2":  (0,   150, 255, 255),  # kékes (cián/kék)
+                "main":    (20,  20,  35,  255),
+                "dim":     (120, 110, 140, 200),
+                "line":    (0,   0,   0,   40),
+                "accent":  (255, 100, 50,  255),
+                "accent2": (0,   150, 255, 255),
             }
         else:
             colors = {
-                "main":     (255, 255, 255, 255),
-                "dim":      (150, 155, 180, 200),
-                "line":     (100, 150, 255, 30),
-                "accent":   (0,   230, 200, 255),
-                "accent2":  (0,   160, 255, 255),  # kékes (égszínkék)
+                "main":    (255, 255, 255, 255),
+                "dim":     (150, 155, 180, 200),
+                "line":    (255, 255, 255, 40),
+                "accent":  (0,   230, 200, 255),
+                "accent2": (0,   160, 255, 255),
             }
     else:
-        # Ha nincs háttérkép, használd a gradiens megoldást
-        # Automatikus sötét / világos mód
+        # Nincs háttérkép → gradiens fallback (változatlan)
         brightness = ImageStat.Stat(img.crop((bx, by, bx + bw, by + bh)).convert("L")).mean[0]
 
         if brightness > 145:
@@ -165,9 +187,9 @@ def draw_weather_widget(
                 "dim":      (120, 110, 140, 200),
                 "line":     (0,   0,   0,   12),
                 "accent":   (255, 100, 50,  255),
-                "accent2":  (0,   150, 255, 255),  # kékes
-                "bg_start": (255, 255, 245, 255),  # TELJESEN ÁTLÁTSZATLAN (alpha 255)
-                "bg_end":   (245, 240, 255, 255),  # TELJESEN ÁTLÁTSZATLAN (alpha 255)
+                "accent2":  (0,   150, 255, 255),
+                "bg_start": (255, 255, 245, 255),
+                "bg_end":   (245, 240, 255, 255),
             }
         else:
             colors = {
@@ -175,14 +197,13 @@ def draw_weather_widget(
                 "dim":      (150, 155, 180, 200),
                 "line":     (100, 150, 255, 30),
                 "accent":   (0,   230, 200, 255),
-                "accent2":  (0,   160, 255, 255),  # kékes
-                "bg_start": (18,  18,  28,  255),  # TELJESEN ÁTLÁTSZATLAN (alpha 255)
-                "bg_end":   (28,  18,  38,  255),  # TELJESEN ÁTLÁTSZATLAN (alpha 255)
+                "accent2":  (0,   160, 255, 255),
+                "bg_start": (18,  18,  28,  255),
+                "bg_end":   (28,  18,  38,  255),
             }
 
         draw = ImageDraw.Draw(img)
 
-        # GRADIENT HÁTTÉR (teljesen átlátszatlan)
         gx = bx + GRADIENT_OFFSET
         bs, be = colors["bg_start"], colors["bg_end"]
         for y in range(by, by + bh):
@@ -190,9 +211,7 @@ def draw_weather_widget(
             r = int(bs[0] + (be[0] - bs[0]) * t)
             g = int(bs[1] + (be[1] - bs[1]) * t)
             b = int(bs[2] + (be[2] - bs[2]) * t)
-            draw.line([(gx, y), (gx + bw - GRADIENT_OFFSET, y)], fill=(r, g, b, 255), width=1)  # alpha 255 - teljesen átlátszatlan
-        
-        draw = ImageDraw.Draw(img)
+            draw.line([(gx, y), (gx + bw - GRADIENT_OFFSET, y)], fill=(r, g, b, 255), width=1)
 
     draw = ImageDraw.Draw(img)
 
@@ -297,7 +316,7 @@ def draw_weather_widget(
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
     # ── 5. NÉVNAP & IDŐ ──────────────────────────────────────────────
-    draw.text((curr_x + 50, mid_y - 50), "NÉVNAP",           font=f_h, fill=colors["accent2"])
+    draw.text((curr_x + 50, mid_y - 50), "NÉVNAP",            font=f_h, fill=colors["accent2"])
     draw.text((curr_x + 50, mid_y - 2),  ", ".join(namedays), font=f_n, fill=colors["main"])
 
     dt_txt = weather["now_dt"].strftime("%Y.%m.%d  %H:%M")
