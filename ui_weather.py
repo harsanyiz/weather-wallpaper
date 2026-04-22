@@ -18,13 +18,15 @@ FONT_VALUE    = 36   # Értékek (pl. 10 km/h)
 FONT_SMALL    = 30   # Kis érzet érték a hőfok mellett
 FONT_DATETIME = 24   # Dátum+idő jobb felső sarok
 FONT_NAME     = 28   # Névnap felirat
+FONT_FORECAST_DAY = 24   # ÚJ: előrejelzés nap neve (kisebb)
+FONT_FORECAST_TEMP = 32  # ÚJ: előrejelzés hőmérséklet (kisebb)
 
 # Ikon megjelenítési méretek
 ICON_DISPLAY_SIZE  = 160   # px – aktuális időjárás ikon
 FEEL_ICON_SIZE     = 36    # feel.png – érzet ikon a hőfok mellett
 WIND_ICON_SIZE     = 36    # wind.png ikon
 PARA_ICON_SIZE     = 36    # para.png ikon
-FORECAST_ICON_SIZE = 52    # előrejelzés ikonok – összébb, ne lógjon ki
+FORECAST_ICON_SIZE = 44    # CSÖKKENTVE: 52 → 44, hogy kisebb legyen
 SUN_ICON_SIZE      = 40    # napkelte/napnyugta ikon mérete
 ICON_GAP           = 10    # ikon és szöveg közötti rés (szél, pára, érzet)
 
@@ -86,7 +88,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
       1. Időjárás ikon | SZERDA DERÜLT fejléc (kisebb) | nagy hőfok + érzet ikon+szöveg jobbra
       2. [wind ikon] szélsebesség egymás alatt + [para ikon] páratartalom egymás alatt
       3. [day_clear] napkelte idő / [night_clear] napnyugta idő – ikonok igazítva
-      4. 3 napos forecast ikonnal + nap + hőfok (összébb)
+      4. 3 napos forecast ikonnal + nap + hőfok (összébb, lejjebb)
       5. Névnap
       6. Dátum+idő jobb felső sarok
     """
@@ -108,6 +110,8 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     f_s    = get_f(FONT_SMALL)
     f_dt   = get_f(FONT_DATETIME)
     f_n    = get_f(FONT_NAME)
+    f_fd   = get_f(FONT_FORECAST_DAY)         # ÚJ: előrejelzés nap neve
+    f_fv   = get_f(FONT_FORECAST_TEMP, bold=True)  # ÚJ: előrejelzés hőmérséklet
 
     curr_x = int(bx + INNER_MARGIN)
     mid_y  = int(by + (bh // 2))
@@ -237,24 +241,29 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     draw.line([(curr_x, by + 40), (curr_x, by + bh - 40)], fill=colors["line"], width=3)
     curr_x += 50
 
-    # ── SZEKCIÓ 4: 3 NAPOS FORECAST (összébb) ────────────────────────────────
+    # ── SZEKCIÓ 4: 3 NAPOS FORECAST (összébb, lejjebb, kisebb) ───────────────
+    # MÓDOSÍTVA: lejjebb tettem az egész forecast blokkot (mid_y + 10 körülre)
+    forecast_y_offset = 25   # lejjebb tolás mértéke (alapból mid_y körül volt)
+    
     for i, day_entry in enumerate(weather["forecast"]):
         d_name   = get_day_hu(datetime.fromtimestamp(day_entry["dt"])).upper()[:3]
         f_val    = f"{round(day_entry['main']['temp'])}°C"
-        d_name_w = draw.textbbox((0, 0), d_name, font=f_l)[2]
-        f_val_w  = draw.textbbox((0, 0), f_val,  font=f_v)[2]
+        d_name_w = draw.textbbox((0, 0), d_name, font=f_fd)[2]   # kisebb betű
+        f_val_w  = draw.textbbox((0, 0), f_val,  font=f_fv)[2]   # kisebb betű
         col_w    = max(d_name_w, f_val_w, FORECAST_ICON_SIZE)
 
         fc_icon = forecast_icons[i] if i < len(forecast_icons) else None
         if fc_icon:
             paste_icon(img, fc_icon,
                        curr_x + (col_w - FORECAST_ICON_SIZE) // 2,
-                       mid_y - 45 - FORECAST_ICON_SIZE - 4,
+                       mid_y + forecast_y_offset - FORECAST_ICON_SIZE - 8,  # lejjebb
                        size=FORECAST_ICON_SIZE)
 
-        draw.text((curr_x + (col_w - d_name_w) // 2, mid_y - 45), d_name, font=f_l, fill=colors["dim"])
-        draw.text((curr_x + (col_w - f_val_w)  // 2, mid_y),      f_val,  font=f_v, fill=colors["main"])
-        curr_x += col_w + 18   # MÓDOSÍTVA: 28 → 18, hogy összébb legyen, ne lógjon ki
+        draw.text((curr_x + (col_w - d_name_w) // 2, mid_y + forecast_y_offset - 35), 
+                  d_name, font=f_fd, fill=colors["dim"])   # kisebb betű, lejjebb
+        draw.text((curr_x + (col_w - f_val_w)  // 2, mid_y + forecast_y_offset - 8), 
+                  f_val,  font=f_fv, fill=colors["main"])   # kisebb betű, lejjebb
+        curr_x += col_w + 14   # MÓDOSÍTVA: 28 → 14, hogy összébb legyen
 
     # ── SZEKCIÓ 5: NÉVNAP ────────────────────────────────────────────────────
     draw.line([(curr_x, by + 40), (curr_x, by + bh - 40)], fill=colors["line"], width=3)
