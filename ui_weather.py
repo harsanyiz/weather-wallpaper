@@ -31,12 +31,6 @@ SUN_ICON_SIZE      = 40
 ICON_GAP           = 10
 
 ICON_OFFSET_X = 0
-
-# ── ÚJ: DIZÁJN BEÁLLÍTÁSOK ─────────────────────────────────
-TEXT_SHADOW_OFFSET = 2      # árnyék eltolás (px)
-TEXT_SHADOW_OPACITY = 80    # árnyék átlátszatlansága (0-255)
-USE_DOUBLE_LINE = True      # dupla elválasztó vonal?
-LINE_STYLE = "gradient"     # "solid", "double", "gradient", "dotted"
 # ============================================================
 
 
@@ -44,8 +38,6 @@ def find_font(bold=False):
     paths = [
         "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf"    if bold else "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/System/Library/Fonts/Helvetica.ttc",                 # macOS
-        "C:/Windows/Fonts/Arial.ttf",                          # Windows
     ]
     for p in paths:
         import os
@@ -67,43 +59,12 @@ def get_text_colors(brightness):
             "main": (0, 0, 0, 230),
             "dim":  (0, 0, 0, 140),
             "line": (0, 0, 0, 40),
-            "shadow": (255, 255, 255, TEXT_SHADOW_OPACITY),  # világos háttéren sötét szöveghez világos árnyék
         }
     return {
         "main": (255, 255, 255, 255),
         "dim":  (255, 255, 255, 160),
         "line": (255, 255, 255, 40),
-        "shadow": (0, 0, 0, TEXT_SHADOW_OPACITY),            # sötét háttéren fehér szöveghez sötét árnyék
     }
-
-
-def draw_text_with_shadow(draw, xy, text, font, fill, shadow_color):
-    """Szöveg rajzolása árnyékkal."""
-    x, y = xy
-    # Árnyék
-    draw.text((x + TEXT_SHADOW_OFFSET, y + TEXT_SHADOW_OFFSET), text, font=font, fill=shadow_color)
-    # Eredeti szöveg
-    draw.text((x, y), text, font=font, fill=fill)
-
-
-def draw_separator(draw, x, y1, y2, color, style="gradient"):
-    """Csinos elválasztó vonal."""
-    if style == "solid":
-        draw.line([(x, y1), (x, y2)], fill=color, width=2)
-    
-    elif style == "double":
-        draw.line([(x, y1), (x, y2)], fill=color, width=1)
-        draw.line([(x + 3, y1), (x + 3, y2)], fill=color, width=1)
-    
-    elif style == "gradient":
-        # Átmenetes vonal – egymás mellett halványodó vonalak
-        for i, alpha in enumerate([60, 40, 20, 10]):
-            clr = (color[0], color[1], color[2], alpha)
-            draw.line([(x + i, y1), (x + i, y2)], fill=clr, width=1)
-    
-    elif style == "dotted":
-        for yy in range(y1, y2, 8):
-            draw.line([(x, yy), (x, yy + 3)], fill=color, width=2)
 
 
 def paste_icon(img, icon_img, x, y, size=ICON_DISPLAY_SIZE):
@@ -174,23 +135,26 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     header_y = mid_y - total_h // 2
     temp_y   = header_y + header_h + spacing
 
-    # Szövegek ÁRNYÉKKAL
-    draw_text_with_shadow(draw, (tx, header_y), day_txt, f_h, colors["dim"], colors["shadow"])
-    draw_text_with_shadow(draw, (tx + day_w + header_gap, header_y), desc_txt, f_h, colors["dim"], colors["shadow"])
-    draw_text_with_shadow(draw, (tx, temp_y), temp_txt, f_t, colors["main"], colors["shadow"])
+    # ── PONTOS IGAZÍTÁSOK ───────────────────────────────────────────────────
+    # "SZERDA RÉSZBEN FELHŐS" 3 pixellel LEJJEBB
+    draw.text((tx, header_y + 3), day_txt, font=f_h, fill=colors["dim"])
+    draw.text((tx + day_w + header_gap, header_y + 3), desc_txt, font=f_h, fill=colors["dim"])
+    
+    # Hőfok 1 pixellel FELJEBB
+    draw.text((tx, temp_y - 1), temp_txt, font=f_t, fill=colors["main"])
 
-    temp_bottom  = temp_y + temp_h
+    temp_bottom  = temp_y - 1 + temp_h
     feel_icon_y  = temp_bottom - FEEL_ICON_SIZE
     feel_text_y  = temp_bottom - draw.textbbox((0, 0), feel_txt, font=f_s)[3]
     feel_x       = tx + temp_w + 14
 
     if feel_icon_img:
         paste_icon(img, feel_icon_img, feel_x, feel_icon_y, size=FEEL_ICON_SIZE)
-    draw_text_with_shadow(draw, (feel_x + FEEL_ICON_SIZE + ICON_GAP, feel_text_y),
-                          feel_txt, f_s, colors["dim"], colors["shadow"])
+    draw.text((feel_x + FEEL_ICON_SIZE + ICON_GAP, feel_text_y),
+              feel_txt, font=f_s, fill=colors["dim"])
 
     curr_x += icon_gap_px + text_block_w + 60
-    draw_separator(draw, curr_x, by + 40, by + bh - 40, colors["line"], LINE_STYLE)
+    draw.line([(curr_x, by + 40), (curr_x, by + bh - 40)], fill=colors["line"], width=3)
     curr_x += 50
 
     # ── SZEKCIÓ 2 ────────────────────────────────────────────────────────────
@@ -210,17 +174,15 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     if wind_icon_img:
         paste_icon(img, wind_icon_img, curr_x,
                    top_y + (wval_h - WIND_ICON_SIZE) // 2, size=WIND_ICON_SIZE)
-    draw_text_with_shadow(draw, (curr_x + WIND_ICON_SIZE + ICON_GAP, top_y),
-                          wind_val, f_v, colors["main"], colors["shadow"])
+    draw.text((curr_x + WIND_ICON_SIZE + ICON_GAP, top_y), wind_val, font=f_v, fill=colors["main"])
 
     if para_icon_img:
         paste_icon(img, para_icon_img, curr_x,
                    bot_y + (hval_h - PARA_ICON_SIZE) // 2, size=PARA_ICON_SIZE)
-    draw_text_with_shadow(draw, (curr_x + PARA_ICON_SIZE + ICON_GAP, bot_y),
-                          hum_val, f_v, colors["main"], colors["shadow"])
+    draw.text((curr_x + PARA_ICON_SIZE + ICON_GAP, bot_y), hum_val, font=f_v, fill=colors["main"])
 
     curr_x += col2_w + 50
-    draw_separator(draw, curr_x, by + 40, by + bh - 40, colors["line"], LINE_STYLE)
+    draw.line([(curr_x, by + 40), (curr_x, by + bh - 40)], fill=colors["line"], width=3)
     curr_x += 50
 
     # ── SZEKCIÓ 3 ────────────────────────────────────────────────────────────
@@ -233,20 +195,21 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
 
     if sunrise_icon_img:
         paste_icon(img, sunrise_icon_img, curr_x, top_y, size=SUN_ICON_SIZE)
-    draw_text_with_shadow(draw, (curr_x + SUN_ICON_SIZE + ICON_GAP, top_y),
-                          sunrise_txt, f_v, colors["main"], colors["shadow"])
+    draw.text((curr_x + SUN_ICON_SIZE + ICON_GAP, top_y),
+              sunrise_txt, font=f_v, fill=colors["main"])
 
     if sunset_icon_img:
         paste_icon(img, sunset_icon_img, curr_x, bot_y, size=SUN_ICON_SIZE)
-    draw_text_with_shadow(draw, (curr_x + SUN_ICON_SIZE + ICON_GAP, bot_y),
-                          sunset_txt, f_v, colors["main"], colors["shadow"])
+    draw.text((curr_x + SUN_ICON_SIZE + ICON_GAP, bot_y),
+              sunset_txt, font=f_v, fill=colors["main"])
 
     curr_x += sun_col_w + 50
-    draw_separator(draw, curr_x, by + 40, by + bh - 40, colors["line"], LINE_STYLE)
+    draw.line([(curr_x, by + 40), (curr_x, by + bh - 40)], fill=colors["line"], width=3)
     curr_x += 50
 
-    # ── SZEKCIÓ 4 ────────────────────────────────────────────────────────────
-    forecast_offset = 18
+    # ── SZEKCIÓ 4: FORECAST (4 PIXELLEL BALRA) ───────────────────────────────
+    forecast_offset_y = 18
+    forecast_offset_x = -4   # 4 pixel balra
     
     for i, day_entry in enumerate(weather["forecast"]):
         d_name   = get_day_hu(datetime.fromtimestamp(day_entry["dt"])).upper()[:3]
@@ -258,26 +221,26 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
         fc_icon = forecast_icons[i] if i < len(forecast_icons) else None
         if fc_icon:
             paste_icon(img, fc_icon,
-                       curr_x + (col_w - FORECAST_ICON_SIZE) // 2,
-                       mid_y - 45 - FORECAST_ICON_SIZE + forecast_offset,
+                       curr_x + forecast_offset_x + (col_w - FORECAST_ICON_SIZE) // 2,
+                       mid_y - 45 - FORECAST_ICON_SIZE + forecast_offset_y,
                        size=FORECAST_ICON_SIZE)
 
-        draw_text_with_shadow(draw, (curr_x + (col_w - d_name_w) // 2, mid_y - 40 + forecast_offset),
-                              d_name, f_fd, colors["dim"], colors["shadow"])
-        draw_text_with_shadow(draw, (curr_x + (col_w - f_val_w)  // 2, mid_y - 8 + forecast_offset),
-                              f_val,  f_fv, colors["main"], colors["shadow"])
+        draw.text((curr_x + forecast_offset_x + (col_w - d_name_w) // 2, mid_y - 40 + forecast_offset_y),
+                  d_name, font=f_fd, fill=colors["dim"])
+        draw.text((curr_x + forecast_offset_x + (col_w - f_val_w)  // 2, mid_y - 8 + forecast_offset_y),
+                  f_val,  font=f_fv, fill=colors["main"])
         curr_x += col_w + 14
 
     # ── SZEKCIÓ 5 ────────────────────────────────────────────────────────────
-    draw_separator(draw, curr_x, by + 40, by + bh - 40, colors["line"], LINE_STYLE)
+    draw.line([(curr_x, by + 40), (curr_x, by + bh - 40)], fill=colors["line"], width=3)
     curr_x += 40
 
     nameday_value = ", ".join(n.strip().rstrip("\\") for n in namedays)
-    draw_text_with_shadow(draw, (curr_x, mid_y - 45), "NÉVNAP", f_l, colors["dim"], colors["shadow"])
-    draw_text_with_shadow(draw, (curr_x, mid_y), nameday_value, f_n, colors["main"], colors["shadow"])
+    draw.text((curr_x, mid_y - 45), "NÉVNAP",      font=f_l, fill=colors["dim"])
+    draw.text((curr_x, mid_y),      nameday_value, font=f_n, fill=colors["main"])
 
     # ── DÁTUM + IDŐ ──────────────────────────────────────────────────────────
     datetime_txt = now_dt.strftime("%y.%m.%d  %H:%M")
     dt_w = draw.textbbox((0, 0), datetime_txt, font=f_dt)[2]
-    draw_text_with_shadow(draw, (bx + bw - dt_w, by + 10), datetime_txt, f_dt,
-                          (160, 160, 160, 200), colors["shadow"])
+    draw.text((bx + bw - dt_w, by + 10), datetime_txt, font=f_dt,
+              fill=(160, 160, 160, 200))
