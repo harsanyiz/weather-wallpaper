@@ -2,7 +2,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageStat
 from datetime import datetime, timezone, timedelta
 
 # ============================================================
-# 4K-S HORIZONTÁLIS DESIGN - GEMINI EDITION (FINAL)
+# 4K-S HORIZONTÁLIS DESIGN - GEMINI EDITION (FINAL REFINEMENT)
 # ============================================================
 WIDGET_WIDTH  = 2400
 WIDGET_HEIGHT = 200
@@ -69,7 +69,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     mid_y = by + (bh // 2)
     curr_x = bx + INNER_MARGIN
 
-    # ── SZEKCIÓ 1: AKTUÁLIS (Helyrerakott feliratok és baseline) ───────────
+    # ── SZEKCIÓ 1: AKTUÁLIS ───────────────────────────────────────────
     SEC1_W = 650 
     sec1_mid = curr_x + (SEC1_W // 2)
     
@@ -91,16 +91,18 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     tx = start_x + ICON_DISPLAY_SIZE + 45
     temp_y = mid_y - (t_h // 2) + 5
 
-    # --- FEJLÉC IGAZÍTÁSA (8 km/h magasságához) ---
+    # --- FEJLÉC IGAZÍTÁSA (8 km/h magasságához + 3px eltolás jobbra) ---
     header_y = mid_y - 62 
-    draw.text((tx, header_y), day_txt, font=f_h, fill=colors["dim"])
+    header_x = tx + 3 
+    
+    draw.text((header_x, header_y), day_txt, font=f_h, fill=colors["dim"])
     day_w_header = draw.textbbox((0, 0), day_txt, font=f_h)[2]
-    draw.text((tx + day_w_header + 30, header_y), desc_txt, font=f_h, fill=colors["dim"])
+    draw.text((header_x + day_w_header + 30, header_y), desc_txt, font=f_h, fill=colors["dim"])
 
     # FŐ HŐFOK
     draw.text((tx, temp_y), temp_txt, font=f_t, fill=colors["main"])
     
-    # PIXEL PERFECT BASELINE
+    # BASELINE IGAZÍTÁS AZ ÉRZET HŐFOKHOZ
     base_line_y = temp_y + t_h
     feel_x = tx + t_w + 35
     if feel_icon_img:
@@ -124,7 +126,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
         curr_x += data_w
         draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
-    # ── SZEKCIÓ 4: FORECAST ──────────────────────────────────────────────
+    # ── SZEKCIÓ 4: ELŐREJELZÉS ───────────────────────────────────────────
     SEC4_W = 540
     slot_w = SEC4_W // 3
     for i, day_entry in enumerate(weather["forecast"]):
