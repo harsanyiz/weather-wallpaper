@@ -3,7 +3,7 @@ from datetime import datetime
 import os
 
 # --- KONFIGURÁCIÓ & MÉRETEK (4K HORIZONTÁLIS) ---
-WIDGET_WIDTH   = 2270
+WIDGET_WIDTH   = 2350
 WIDGET_HEIGHT  = 200
 WIDGET_Y       = 100
 OFFSET_LEFT    = 200
