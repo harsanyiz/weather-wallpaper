@@ -2,7 +2,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageStat
 from datetime import datetime, timezone, timedelta
 
 # ============================================================
-# 4K-S HORIZONTÁLIS DESIGN - GEMINI "MASTERPIECE" EDITION
+# 4K-S HORIZONTÁLIS DESIGN - GEMINI "ULTIMATE PIXEL" EDITION
 # ============================================================
 WIDGET_WIDTH  = 2400
 WIDGET_HEIGHT = 200
@@ -25,7 +25,7 @@ ICON_DISPLAY_SIZE  = 160
 FEEL_ICON_SIZE     = 34
 WIND_ICON_SIZE     = 36
 PARA_ICON_SIZE     = 36
-FORECAST_ICON_SIZE = 54   # Kicsit csökkentve, hogy ne lógjon ki
+FORECAST_ICON_SIZE = 54
 SUN_ICON_SIZE      = 40
 
 def find_font(bold=False):
@@ -69,8 +69,8 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     mid_y = by + (bh // 2)
     curr_x = bx + INNER_MARGIN
 
-    # ── SZEKCIÓ 1: AKTUÁLIS ───────────────────────────────────────────
-    SEC1_W = 650 
+    # ── SZEKCIÓ 1: AKTUÁLIS (SZÉLESEBB KERET A VONAL MIATT) ───────────
+    SEC1_W = 680 
     sec1_mid = curr_x + (SEC1_W // 2)
     
     day_txt = get_day_hu(weather["now_dt"]).upper()
@@ -89,15 +89,16 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     tx = start_x + ICON_DISPLAY_SIZE + 45
     temp_y = mid_y - (t_h // 2) + 5
 
-    # FEJLÉC: +3px jobbra tolva a tx-hez képest
+    # FEJLÉC: +10px eltolás jobbra, hogy ne érjen a számhoz
     header_y = mid_y - 62 
-    header_x = tx + 3 
+    header_x = tx + 10 
     draw.text((header_x, header_y), day_txt, font=f_h, fill=colors["dim"])
     day_w_header = draw.textbbox((0, 0), day_txt, font=f_h)[2]
     draw.text((header_x + day_w_header + 30, header_y), desc_txt, font=f_h, fill=colors["dim"])
 
     draw.text((tx, temp_y), temp_txt, font=f_t, fill=colors["main"])
     
+    # Érzet hőfok baseline korrekcióval
     base_line_y = temp_y + t_h
     feel_x = tx + t_w + 35
     if feel_icon_img:
@@ -107,22 +108,39 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     curr_x += SEC1_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
-    # ── SZEKCIÓ 2 & 3: ADATOK (Tűpontos igazítás) ──────────────────────
-    for data_w, items in [(260, [(weather['wind_kmh'], " km/h", wind_icon_img), (weather['humidity'], "%", para_icon_img)]),
-                         (240, [(weather['sunrise'], "", sunrise_icon_img), (weather['sunset'], "", sunset_icon_img)])]:
-        sec_mid = curr_x + (data_w // 2)
-        
-        # Oszlopos igazítás: az ikonok egy vonalban kezdődnek
-        icon_x_fix = sec_mid - 45 # Fix eltolás a középvonaltól a szimmetriához
-        for i, (val, unit, icon) in enumerate(items):
-            txt = f"{val}{unit}"
-            y_pos = mid_y - 65 if i == 0 else mid_y + 10
-            if icon: paste_icon(img, icon, icon_x_fix, y_pos + 5, size=WIND_ICON_SIZE)
-            draw.text((icon_x_fix + WIND_ICON_SIZE + 15, y_pos), txt, font=f_v, fill=colors["main"])
-        curr_x += data_w
-        draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
+    # ── SZEKCIÓ 2: SZÉL ÉS PÁRA (TŰPONTOS IKON OSZLOP) ──────────────────
+    SEC2_W = 280
+    sec2_mid = curr_x + (SEC2_W // 2)
+    icon_x_fix = sec2_mid - 55 
 
-    # ── SZEKCIÓ 4: ELŐREJELZÉS (Kicsit lejjebb tolt ikonok, hogy ne lógjanak ki) ──
+    # Szél - Ikon +2px emelve, hogy ne lógjon le a sorból
+    y_pos1 = mid_y - 65
+    if wind_icon_img: paste_icon(img, wind_icon_img, icon_x_fix, y_pos1 + 2, size=WIND_ICON_SIZE)
+    draw.text((icon_x_fix + WIND_ICON_SIZE + 15, y_pos1), f"{weather['wind_kmh']} km/h", font=f_v, fill=colors["main"])
+
+    # Pára - Ikon +2px emelve
+    y_pos2 = mid_y + 10
+    if para_icon_img: paste_icon(img, para_icon_img, icon_x_fix, y_pos2 + 2, size=PARA_ICON_SIZE)
+    draw.text((icon_x_fix + PARA_ICON_SIZE + 15, y_pos2), f"{weather['humidity']}%", font=f_v, fill=colors["main"])
+
+    curr_x += SEC2_W
+    draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
+
+    # ── SZEKCIÓ 3: NAPKELTE / NAPNYUGTA ──────────────────────────────
+    SEC3_W = 260 
+    sec3_mid = curr_x + (SEC3_W // 2)
+    icon_x_sun = sec3_mid - 45
+    
+    if sunrise_icon_img: paste_icon(img, sunrise_icon_img, icon_x_sun, mid_y - 65 + 2, size=SUN_ICON_SIZE)
+    draw.text((icon_x_sun + SUN_ICON_SIZE + 15, mid_y - 65), weather['sunrise'], font=f_v, fill=colors["main"])
+    
+    if sunset_icon_img: paste_icon(img, sunset_icon_img, icon_x_sun, mid_y + 10 + 2, size=SUN_ICON_SIZE)
+    draw.text((icon_x_sun + SUN_ICON_SIZE + 15, mid_y + 10), weather['sunset'], font=f_v, fill=colors["main"])
+
+    curr_x += SEC3_W
+    draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
+
+    # ── SZEKCIÓ 4: ELŐREJELZÉS (IKONOK HELYÉN) ─────────────────────────
     SEC4_W = 540
     slot_w = SEC4_W // 3
     for i, day_entry in enumerate(weather["forecast"]):
@@ -131,7 +149,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
         f_val = f"{round(day_entry['main']['temp'])}°C"
         
         if i < len(forecast_icons):
-            # mid_y - 95: az ikonok feljebb, d_name mid_y-on, f_val alatta
+            # Az ikonok kicsit magasabban (-92), hogy ne lógjanak le a nap nevére
             paste_icon(img, forecast_icons[i], slot_mid - (FORECAST_ICON_SIZE // 2), mid_y - 92, size=FORECAST_ICON_SIZE)
         
         draw.text((slot_mid - draw.textbbox((0, 0), d_name, font=f_fd)[2] // 2, mid_y - 15), d_name, font=f_fd, fill=colors["dim"])
@@ -140,7 +158,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img,
     curr_x += SEC4_W
     draw.line([(curr_x, by + 50), (curr_x, by + bh - 50)], fill=colors["line"], width=2)
 
-    # ── SZEKCIÓ 5: NÉVNAP ÉS IDŐ ───────────────────────────────────────
+    # ── SZEKCIÓ 5: NÉVNAP ÉS DÁTUM ────────────────────────────────────
     curr_x += 50
     nameday_value = ", ".join(n.strip().rstrip("\\") for n in namedays)
     draw.text((curr_x, mid_y - 50), "NÉVNAP", font=f_h, fill=colors["dim"])
