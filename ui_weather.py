@@ -113,7 +113,7 @@ def draw_weather_widget(img, weather, icon_img, feel_icon_img, rainq_icon_img, w
         g = int(colors["bg_start"][1] * (1 - ratio) + colors["bg_end"][1] * ratio)
         b = int(colors["bg_start"][2] * (1 - ratio) + colors["bg_end"][2] * ratio)
         a = colors["bg_start"][3]
-        draw.line([(gradient_start_x, y), (gradient_start_x + bw, y)], fill=(r, g, b, a), width=1)
+        draw.line([(gradient_start_x, y), (gradient_start_x + bw - 10, y)], ...)
     
     mid_y = by + (bh // 2)
     curr_x = bx + INNER_MARGIN
