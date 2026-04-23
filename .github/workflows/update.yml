@@ -2,7 +2,7 @@ name: Weather Wallpaper Update
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Minden óra elején fut
+    - cron: '*/30 * * * *'  # 30 percenként 1x lefut
   workflow_dispatch:      # Manuálisan is indítható
 
 jobs:
