@@ -1,3 +1,4 @@
+import os
 import time
 from PIL import Image
 
@@ -55,14 +56,13 @@ def main():
         img = img.convert("RGBA")
 
         # ── Widget rárajzolása ────────────────────────────────────────────────
-        # Figyelj, hogy az ui_weather.py-ban a függvény paraméterei ugyanígy legyenek!
         draw_weather_widget(
             img=img,
             weather=weather,
             icon_img=icon_img,
             feel_icon_img=feel_icon_img,
-            rainq_icon_img=rainq_icon_img,     
-            wind1_icon_img=wind1_icon_img,     
+            rainq_icon_img=rainq_icon_img,
+            wind1_icon_img=wind1_icon_img,
             para_icon_img=para_icon_img,
             forecast_icons=forecast_icons,
             sunrise_icon_img=sunrise_icon_img,
@@ -71,8 +71,13 @@ def main():
             tz_offset=weather["tz_offset"],
         )
 
-        # ── Mentés ───────────────────────────────────────────────────────────
-        img.convert("RGB").save(dst, "JPEG", quality=100, subsampling=0)
+        # ── Mentés (atomikus: temp → replace) ────────────────────────────────
+        # Először temp fájlba menti, majd atomi felülírás.
+        # Így sosem lesz "félig kész" vagy üres current.jpg,
+        # és a Windows cache sem ragad be a régi képre.
+        tmp = dst + ".tmp"
+        img.convert("RGB").save(tmp, "JPEG", quality=100, subsampling=0)
+        os.replace(tmp, dst)
         print(f"✅ Kép mentve: {dst}")
 
         # ── JSON frissítése ───────────────────────────────────────────────────
