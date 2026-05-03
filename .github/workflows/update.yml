@@ -9,6 +9,7 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write    # Engedély a fájlok módosításához
 
@@ -42,7 +43,6 @@ jobs:
 
           git add images/current.jpg weather.json
 
-          # Ha nincs változás, nem commitol
           if git diff --staged --quiet; then
             echo "Nincs változás, skip commit"
             exit 0
@@ -50,9 +50,12 @@ jobs:
 
           git commit -m "🌤 Időjárás frissítés $(date '+%Y-%m-%d %H:%M')"
 
-          # Biztonságos rebase – NEM írja felül a generált fájlokat
           git fetch origin main
-          git rebase origin/main
 
-          # Push
-          git push origin main
+          if ! git rebase origin/main; then
+            echo "Rebase conflict – abort és force push saját verziónkkal"
+            git rebase --abort
+            git push origin main --force-with-lease
+          else
+            git push origin main
+          fi
